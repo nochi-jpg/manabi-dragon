@@ -58,7 +58,11 @@ button{font-family:var(--f)}
 #bossHp{position:absolute;left:430px;width:420px;top:18px;z-index:6;display:none}
 #bossHp .gauge{height:24px}
 #bossHp .nm{font-size:22px;text-align:center}
-#bossHp .num{font-size:16px;text-align:right}
+#bossHp .num{font-size:16px;text-align:right;white-space:nowrap}
+#bossHp .row2{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-top:3px}
+#bStat{flex:1;display:flex;flex-wrap:wrap;gap:3px}
+#bossHp .row2 .num{flex-shrink:0}
+#bStat .chip{font-size:14px;padding:1px 6px;white-space:nowrap;}
 #intent{position:absolute;right:14px;top:330px;width:250px;z-index:6;font-size:19px;line-height:1.4;padding:8px 12px;background:rgba(0,0,0,.72);border:3px solid var(--gold);border-radius:16px;text-align:center;display:none}
 #intent.danger{border-color:#ef4444;color:#fecaca;animation:blink 1s infinite}
 @keyframes blink{50%{box-shadow:0 0 22px #ef4444}}
@@ -250,7 +254,7 @@ table{width:100%;font-size:20px;border-collapse:collapse}td{padding:3px}td:last-
     <div id="items"></div>
   </div>
   <div id="info"><div id="dayN" class="ol"></div><div id="dow" class="ol"></div><div id="next" class="ol"></div></div>
-  <div id="bossHp"><div class="nm ol" id="bName"></div><div class="gauge" id="bGauge"><div class="mask"></div></div><div class="num ol" id="bNum"></div></div>
+  <div id="bossHp"><div class="nm ol" id="bName"></div><div class="gauge" id="bGauge"><div class="mask"></div></div><div class="row2"><div id="bStat"></div><div class="num ol" id="bNum"></div></div></div>
   <div id="intent"></div>
   <div id="cdBox"><div class="n" id="cdN"></div><div class="ol" style="font-size:15px">ブレイクまで</div><div class="g"><i id="brkBar"></i></div></div>
   <div id="choices"></div>

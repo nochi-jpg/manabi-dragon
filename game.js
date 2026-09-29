@@ -619,7 +619,8 @@ function nextIntent() {
   return { type, ...INTENT[type]() };
 }
 function updateUI() {
-  $('#bName').innerHTML = `${bName()} <span class="chip" style="background:${BTNC[S.bossEl]}">${S.bossEl}</span>${B.atkMul > 1 ? ` <span class="chip" style="background:#7f1d1d">攻×${B.atkMul.toFixed(1)}</span>` : ''}${B.sanct > 0 ? ` <span class="chip" style="background:#7c3aed">✨聖域 残り${B.sanct}</span>` : ''}${B.armor ? ' <span class="chip" style="background:#0369a1">🛡よろい</span>' : ''}`;
+  $('#bName').innerHTML = `${bName()} <span class="chip" style="background:${BTNC[S.bossEl]}">${S.bossEl}</span>`;
+  $('#bStat').innerHTML = `${B.atkMul > 1 ? ` <span class="chip" style="background:#7f1d1d">攻×${B.atkMul.toFixed(1)}</span>` : ''}${B.sanct > 0 ? ` <span class="chip" style="background:#7c3aed">✨聖域 あと${B.sanct}ターン</span>` : ''}${B.armor ? ' <span class="chip" style="background:#0369a1">🛡よろい</span>' : ''}`;
   gauge('#bGauge', B.hp / B.max); $('#bNum').textContent = `${fmt(B.hp)} / ${fmt(B.max)}`;
   renderSide(); renderInfo();
   const it = B.intent, ie = $('#intent');
