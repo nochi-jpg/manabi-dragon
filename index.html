@@ -259,6 +259,23 @@ table{width:100%;font-size:20px;border-collapse:collapse}td{padding:3px}td:last-
 .runaway{transition:transform .6s ease-in,opacity .6s;transform:translateX(-700px);opacity:0}
 .blackout{position:absolute;inset:0;background:#000;opacity:0;animation:blackout 6s forwards}
 @keyframes blackout{0%{opacity:0}20%{opacity:1}45%{opacity:1}100%{opacity:0}}
+
+/* ---- パスワードロック ---- */
+.btn.locked{filter:grayscale(1) brightness(.7);opacity:.75}
+.btn.unlocked{animation:unlockGlow 1.2s ease-out 2}
+@keyframes unlockGlow{0%{box-shadow:0 0 0 #fff,0 6px 0 #111;transform:scale(1)}40%{box-shadow:0 0 40px #fde047,0 6px 0 #111;transform:scale(1.12)}100%{box-shadow:0 0 0 #fff,0 6px 0 #111;transform:scale(1)}}
+.dial{display:flex;gap:18px;justify-content:center;margin:4px 0 8px}
+.dcol{display:flex;flex-direction:column;align-items:center;gap:6px}
+.dbtn{width:90px;height:52px;font-size:28px;border:3px solid #111;border-radius:12px;background:#e2e8f0;color:#111;cursor:pointer;box-shadow:0 4px 0 #111}
+.dbtn:active{transform:translateY(3px);box-shadow:0 1px 0 #111}
+.dial .dgt{width:90px;height:110px;display:flex;align-items:center;justify-content:center;font-size:76px;background:linear-gradient(#1f2937,#374151 50%,#1f2937);color:#fde047;border:4px solid #b45309;border-radius:14px;font-family:'DotGothic16',monospace}
+.dspin{animation:dspin .18s}
+@keyframes dspin{0%{transform:scaleY(.4);opacity:.3}100%{transform:none;opacity:1}}
+.passmsg{text-align:center;font-size:28px;min-height:40px;margin:4px 0}
+.passmsg.ng{color:#fca5a5}.passmsg.ok{color:#fde047;text-shadow:0 0 12px #fde047}
+.rpass{margin:6px 0 2px;padding:6px 14px;border:3px dashed #fde047;border-radius:12px;background:rgba(0,0,0,.35);font-size:18px;line-height:1.3}
+.rpass b{font-size:30px;color:#fde047;letter-spacing:6px}
+.rpass small{font-size:14px}
 </style>
 </head>
 <body>

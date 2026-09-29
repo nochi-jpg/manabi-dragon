@@ -446,7 +446,42 @@ function dateCut(from, to) {
 }
 
 // ---------- タイトル ----------
-function title() {
+// ---------- パスワードロック（セーブなし：ページを開き直すとロックにもどる） ----------
+const PASSWORD = { hard: '961', extreme: '621' };   // 961＝くろい、621＝むずい
+const UNLOCK = { hard: false, extreme: false };
+const LOCK_HINT = {
+  hard: '🔒 ハードモードはロックされています。<br>4〜6年のどれかをクリアすると、パスワードが手に入るよ！<br>タイトル画面の「🔑 パスワード」で入力しよう。',
+  extreme: '🔒 エクストリームはロックされています。<br>ハードモードをクリアすると、パスワードが手に入るよ！<br>タイトル画面の「🔑 パスワード」で入力しよう。',
+};
+function lockNotice(html) {
+  const m = $('#modal'); m.style.display = 'flex';
+  m.innerHTML = `<div class="modalBox pop"><div style="font-size:60px;line-height:1.1">🔒</div><p style="line-height:1.6">${html}</p><button class="btn" style="margin-top:12px">とじる</button></div>`;
+  m.onclick = () => { m.style.display = 'none'; m.onclick = null; };
+}
+function passScreen() {
+  const d = [0, 0, 0];
+  $('#panelIn').innerHTML = `
+    <h2 class="ol" style="font-size:34px;margin:0 0 6px">🔑 パスワード</h2>
+    <p style="text-align:center;margin:0 0 10px">▲▼で3けたの数字を合わせて「確定！」</p>
+    <div class="dial">${[0, 1, 2].map(i => `<div class="dcol"><button class="dbtn" data-i="${i}" data-v="1">▲</button><div class="dgt" id="dn${i}">0</div><button class="dbtn" data-i="${i}" data-v="-1">▼</button></div>`).join('')}</div>
+    <div id="passMsg" class="passmsg">&nbsp;</div>
+    <div class="row"><button class="btn gold" id="passOk" style="font-size:28px;padding:10px 50px">確定！</button><button class="btn gray" id="passBack">もどる</button></div>`;
+  $('#panelIn').querySelectorAll('.dbtn').forEach(b => b.onclick = () => {
+    const i = +b.dataset.i; d[i] = (d[i] + +b.dataset.v + 10) % 10;
+    const n = $('#dn' + i); n.textContent = d[i]; anim('#dn' + i, 'dspin');
+  });
+  $('#passBack').onclick = () => title();
+  $('#passOk').onclick = () => {
+    const code = d.join(''), pm = $('#passMsg');
+    const hit = code === PASSWORD.extreme ? 'extreme' : code === PASSWORD.hard ? 'hard' : null;
+    if (!hit) { pm.className = 'passmsg ng'; pm.textContent = 'にんしょうしっぱい・・・'; anim('.dial', 'shake'); return; }
+    UNLOCK.hard = true; if (hit === 'extreme') UNLOCK.extreme = true;
+    pm.className = 'passmsg ok'; pm.textContent = hit === 'extreme' ? 'エクストリームが解除されました！' : 'ハードが解除されました！';
+    $('#passOk').disabled = true;
+    setTimeout(() => title(hit), 1400);
+  };
+}
+function title(justUnlocked) {
   $('#panelIn').classList.remove('resmode');
   S = null; B = null;
   setBg(ASSETS.bg.title, GRAD[0]);
@@ -458,14 +493,16 @@ function title() {
     <img src="${ASSETS.logo}" alt="まなびドラゴン" class="logo" onerror="this.outerHTML='<h1 class=&quot;ol&quot;>まなびドラゴン</h1>'">
     <p style="text-align:center">勉強して竜を育て、3週間後の天使をたおせ！</p>
     <h2>学年をえらぶ</h2>
-    <div class="row"><button class="btn" data-g="4">4年生</button><button class="btn" data-g="5">5年生</button><button class="btn" data-g="6">6年生</button><button class="btn" data-g="0" style="background:#b91c1c">🔥 ハード</button><button class="btn" data-g="0" data-x="1" style="background:linear-gradient(135deg,#4c1d95,#111)">💀 エクストリーム</button></div>
+    <div class="row"><button class="btn" data-g="4">4年生</button><button class="btn" data-g="5">5年生</button><button class="btn" data-g="6">6年生</button><button class="btn${UNLOCK.hard ? '' : ' locked'}${justUnlocked === 'hard' || justUnlocked === 'extreme' ? ' unlocked' : ''}" data-g="0" data-lock="hard" style="background:#b91c1c">${UNLOCK.hard ? '' : '🔒'}🔥 ハード</button><button class="btn${UNLOCK.extreme ? '' : ' locked'}${justUnlocked === 'extreme' ? ' unlocked' : ''}" data-g="0" data-x="1" data-lock="extreme" style="background:linear-gradient(135deg,#4c1d95,#111)">${UNLOCK.extreme ? '' : '🔒'}💀 エクストリーム</button><button class="btn gray" id="passBtn">🔑 パスワード</button></div>
     <p style="text-align:center;font-size:15px;margin-top:4px">ハード：4〜6年の全問題／与ダメ↓・被ダメ↑／スコア1.5倍　💀エクストリーム：さらにきびしい／スコア2倍</p>
     
     <div class="chips" style="margin-top:12px">${cnt}</div>
     <div class="row" style="align-items:center;font-size:17px"><label><input type="checkbox" id="append"> いまの問題に追加</label><button class="btn gray" id="csvBtn" style="font-size:18px;padding:8px 16px">📂 問題CSVを読みこむ</button></div>
     <input type="file" id="csv" accept=".csv,text/csv" hidden>`;
   $('#panel').style.display = 'flex'; $('#panel').classList.add('title');
-  $('#panelIn').querySelectorAll('[data-g]').forEach(b => b.onclick = () => newRun(+b.dataset.g, !!b.dataset.x));
+  $('#panelIn').querySelectorAll('[data-g]').forEach(b => b.onclick = () => { const L = b.dataset.lock; if (L && !UNLOCK[L]) return lockNotice(LOCK_HINT[L]); newRun(+b.dataset.g, !!b.dataset.x); });
+  $('#passBtn').onclick = passScreen;
+  if (justUnlocked) { fxAdd('<div class="flash" style="background:#fff"></div>', 900); anim('#panelIn', 'shakeBig'); }
   $('#csvBtn').onclick = () => $('#csv').click();
   $('#csv').onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
@@ -1101,6 +1138,8 @@ function result(clear) {
   let rank = base >= RANK.S ? 'S' : base >= RANK.A ? 'A' : base >= RANK.B ? 'B' : base >= RANK.C ? 'C' : 'D';
   if (rank === 'S' && !(clear && acc >= RANK.sAcc)) rank = 'A';
   if (!clear && (rank === 'S' || rank === 'A')) rank = 'B';
+  const pass = !clear ? '' : S.grade > 0 ? `<div class="rpass">🔓 パスワード <b>${PASSWORD.hard}</b><br><small>「くろい」と覚えてね！タイトル画面で入力してみよう！</small></div>`
+    : !S.extreme ? `<div class="rpass">🔓 パスワード <b>${PASSWORD.extreme}</b><br><small>「むずい」と覚えてね！タイトル画面で入力してみよう！</small></div>` : '';
   const sNote = rank === 'S' ? '' : `<p class="rnote">Sランクの条件：クリア・正答率${RANK.sAcc}%以上・${fmt(RANK.S * (S.grade === 0 ? DIFF().score : 1))}点以上</p>`;
   const gname = S.grade ? S.grade + '年' : S.extreme ? 'エクストリーム' : 'ハードモード';
   const share = `【まなびドラゴン】${gname} ${S.trueWin ? '真・完全勝利！' : S.kuroWin ? '完全勝利！' : clear ? 'クリア！' : `${S.day}日目でたおれた`} スコア${fmt(score)}（ランク${rank}）正答率${acc}%${clear ? ` タイム${clock}` : ''}`;
@@ -1116,7 +1155,7 @@ function result(clear) {
         <div class="rart">${playerArt('width:130px;height:130px;font-size:96px')}</div>
         <div id="rScore" class="rscore">0</div>
         <div id="rRank" class="rrank" style="color:${RCOL[rank]}">${rank}</div>
-        <div class="rfade">${sNote}
+        <div class="rfade">${pass}${sNote}
           <div class="rbtns"><button class="btn gold" id="again">もういちど</button><button class="btn gray" id="copy">結果をコピー</button></div></div>
       </div>
       <div class="rright">
@@ -1142,7 +1181,7 @@ function result(clear) {
   }
   resultShow(rows, score);
   $('#panel').style.display = 'flex';
-  $('#again').onclick = title;
+  $('#again').onclick = () => title();
   $('#copy').onclick = () => { navigator.clipboard ? navigator.clipboard.writeText(share).then(() => toast('コピーしました'), () => prompt('コピーしてね', share)) : prompt('コピーしてね', share); };
 }
 
