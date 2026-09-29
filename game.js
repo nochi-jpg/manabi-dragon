@@ -212,7 +212,7 @@ const SKILLS = [
   { id: 'crit', name: '💥 かいしんの角', desc: '20%の確率でダメージ2倍' },
   { id: 'breaker', name: '🐾 くだけの爪', desc: 'カウントダウン中のダメージ1.5倍（ブレイクしやすい）' },
 ].map(k => ({ r: 1, ...k }));
-// ハードモード専用アイテム（ハイリスク・ハイリターン）。ハードでは通常アイテムは出ない
+// ハードモード専用アイテム（ハイリスク・ハイリターン）（★★レア）。出現率は DROP_RATE
 const SKILLS_HARD = [
   ...EL.concat('英語').map(s => ({ id: 'h_holy_' + s, name: `${SKICON[s]} ${s}の聖紋章`, desc: `${s}のステータス${EMBLEM.hard}倍（重ねがけOK・最大9999）。ただし${s}で間違えると最大HPの20%の反動ダメージ`, stack: true, r: 2 })),
   { id: 'h_vamp', name: '🦷 吸血の牙', desc: '与えたダメージの30%を吸収。ただし保健の回復量が半分になる' },
@@ -262,7 +262,33 @@ const rCls = k => ' rar' + (k.r || 1);
 const skTitle = k => `<span class="rst r${k.r || 1}">${rStar(k).trim()}</span><b>${skLabel(k)}</b>`;
 // 同じ系統（絵文字が同じ）のアイテムを1つでも持っていたら、その系統は出ない（紋章・法衣など重ねがけOKのものは除く）
 const famHeld = k => !k.stack && S.skills.some(x => skIcon(x) === skIcon(k));
-const skillChoices = n => shuffle((S.grade === 0 ? SKILLS_HARD : SKILLS).filter(k => k.stack || (!has(k.id) && !famHeld(k)))).slice(0, n);
+// ---- アイテムの出現率（★, ★★, ★★★, ☆ の%）。devil＝悪魔のささやき、base＝それ以外すべて ----
+const DROP_RATE = {
+  normal:  { base: [85, 10, 5, 0],  devil: [20, 60, 15, 5] },
+  hard:    { base: [70, 15, 10, 5], devil: [0, 60, 35, 5] },
+  extreme: { base: [30, 40, 20, 10], devil: [0, 50, 40, 10] },   // エクストリーム（今後追加する難易度）
+};
+const diffKey = () => S.extreme ? 'extreme' : S.grade === 0 ? 'hard' : 'normal';
+const POOLS = () => [SKILLS, SKILLS_HARD, SKILLS_SR, SKILLS_LR];
+function rollRarity(kind = 'base') {
+  const w = DROP_RATE[diffKey()][kind]; let x = Math.random() * w.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < 4; i++) { if ((x -= w[i]) < 0) return i + 1; } return 1;
+}
+const canGet = (k, taken) => k.stack || (!has(k.id) && !famHeld(k) && !taken.some(t => t.id === k.id || skIcon(t) === skIcon(k)));
+// n個をえらぶ（1個ずつレアリティを抽選。その星の表が空なら、近い星の表から出す）
+function skillChoices(n, kind = 'base') {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const r = rollRarity(kind), order = [r, r - 1, r - 2, r - 3, r + 1, r + 2, r + 3].filter(x => x >= 1 && x <= 4);
+    for (const rr of order) {
+      const c = POOLS()[rr - 1].filter(k => canGet(k, out) && !out.includes(k));
+      if (c.length) { out.push(pick(c)); break; }
+    }
+  }
+  return out;
+}
+// 師匠のおくりもの：一番高い教科の紋章（レアリティ抽選：紋章→聖紋章→神聖紋章→法衣）
+function emblemGift(top) { return POOLS()[rollRarity() - 1].find(k => k.stack && k.id.endsWith('_' + top)); }
 const skIcon = k => k.name.split(' ')[0], skLabel = k => k.name.split(' ').slice(1).join(' ');
 // ⑤ 入手したアイテムの効果を表示（クリックでとじる）
 function showItem(k, verb = '手に入れた') {
@@ -506,7 +532,7 @@ async function wedEvent() {
     dim(false);
   } else if (x < 0.6) {                            // 師匠からのおくりもの（暗転なし）
     const top = ['国語', '算数', '理科', '社会', '英語'].reduce((a, s) => eff(s) > eff(a) ? s : a, '国語');
-    const k = (S.grade === 0 ? SKILLS_HARD : SKILLS).find(k => k.id === (S.grade === 0 ? 'h_holy_' : 'boost_') + top);
+    const k = emblemGift(top);
     await say(`${M}「がんばっている君に、これを」`, 0);
     await gainItem(k, 'もらった');
   } else if (x < 0.9) {                            // くじびき
@@ -537,7 +563,7 @@ async function wedEvent() {
       const mx = Math.max(...SUBJ.map(x => S.st[x])), top = pick(SUBJ.filter(x => S.st[x] === mx)); // 同値ならランダム
       const b0 = S.st[top]; S.st[top] = Math.max(1, Math.floor(S.st[top] * 0.9)); renderSide(); anim('#face', 'hurt');
       await say(`😈 <span style="color:${COLOR[top]}">${top}</span>の力をうばわれた！ ${b0} → ${S.st[top]}`, 1400);
-      for (let i = 0; i < MAX_ITEMS; i++) await gainItem(skillChoices(1)[0], '悪魔からもらった');
+      for (let i = 0; i < MAX_ITEMS; i++) await gainItem(skillChoices(1, 'devil')[0], '悪魔からもらった');
     } else await say('「…つまらんやつだ」 悪魔は消えていった。', 1300);
     dim(false);
   }
