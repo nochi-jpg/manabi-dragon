@@ -59,8 +59,37 @@ const fmt = n => Math.round(n).toLocaleString();
 const cap = n => Math.min(MAXST, Math.round(n));
 const wait = ms => new Promise(r => setTimeout(r, ms * SPD));
 let SC = 1;
-function fit() { SC = Math.min(innerWidth / 1280, innerHeight / 720); stage.style.transform = `translate(-50%,-50%) scale(${SC})`; }
-addEventListener('resize', fit); fit();
+// ---------- 画面サイズ合わせ（PC・スマホ共通） ----------
+const ROTATE_PORTRAIT = true;   // 縦画面のときはゲーム画面を90度回して最大表示する
+function fit() {
+  const vv = window.visualViewport, W = vv ? vv.width : innerWidth, H = vv ? vv.height : innerHeight;
+  const cs = getComputedStyle($('#safe')), px = v => parseFloat(v) || 0;
+  const sl = px(cs.paddingLeft), sr = px(cs.paddingRight), st = px(cs.paddingTop), sb = px(cs.paddingBottom);
+  const w = W - sl - sr, h = H - st - sb, rot = ROTATE_PORTRAIT && h > w;
+  SC = rot ? Math.min(h / 1280, w / 720) : Math.min(w / 1280, h / 720);
+  stage.style.left = (sl + w / 2) + 'px'; stage.style.top = (st + h / 2) + 'px';
+  stage.style.transform = `translate(-50%,-50%)${rot ? ' rotate(90deg)' : ''} scale(${SC})`;
+}
+['resize', 'orientationchange'].forEach(ev => addEventListener(ev, () => { fit(); setTimeout(fit, 300); }));
+if (window.visualViewport) visualViewport.addEventListener('resize', fit);
+fit(); setTimeout(fit, 100);
+// ピンチ・ダブルタップでの拡大を防ぐ
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
+document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+// スマホ（Android等）：最初のタップで全画面＋横向き固定をためす（iPhoneは「ホーム画面に追加」で全画面）
+function goFullscreen() {
+  const d = document.documentElement, standalone = matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches || navigator.standalone;
+  if (standalone || document.fullscreenElement || !matchMedia('(pointer: coarse)').matches) return;
+  const req = d.requestFullscreen || d.webkitRequestFullscreen;
+  if (!req) return;
+  try {
+    const p = req.call(d, { navigationUI: 'hide' });
+    const lock = () => { try { screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {}); } catch (e) {} setTimeout(fit, 300); };
+    p && p.then ? p.then(lock).catch(() => {}) : lock();
+  } catch (e) {}
+}
+document.addEventListener('pointerdown', goFullscreen, { once: false });
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 2200); }
 window.imgFb = el => { const r = el.dataset.fb ? el.dataset.fb.split('|') : []; if (r.length) { el.src = r.shift(); el.dataset.fb = r.join('|'); } else { el.parentElement.classList.add('noimg'); el.remove(); } };
 function imgArt(list, emoji, cls = '', style = '') {
@@ -619,9 +648,10 @@ function showCmd() {
 }
 
 // ----- エフェクト -----
-function center(sel) {
-  const st = stage.getBoundingClientRect(), r = $(sel).getBoundingClientRect();
-  return { x: (r.left - st.left + r.width / 2) / SC, y: (r.top - st.top + r.height / 2) / SC };
+function center(sel) {   // ステージ内の座標（回転・拡大に影響されない）
+  let e = $(sel), x = e.offsetWidth / 2, y = e.offsetHeight / 2;
+  while (e && e !== stage) { x += e.offsetLeft; y += e.offsetTop; e = e.offsetParent; }
+  return { x, y };
 }
 function fxAdd(html, ms = 1100) { const d = document.createElement('div'); d.innerHTML = html; const n = d.firstElementChild; $('#fx').appendChild(n); setTimeout(() => n.remove(), ms); }
 function anim(sel, cls) { const e = $(sel); if (!e) return; e.classList.remove(cls); void e.offsetWidth; e.classList.add(cls); setTimeout(() => e.classList.remove(cls), 700); }
