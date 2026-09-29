@@ -82,6 +82,14 @@
   - 負けてもクリア扱い（世界は救済済み）。勝つと「完全勝利」＋50,000点
   - 画像：images/boss/kurogane.png ／ セリフ：assets.js の story.trial と lines.kurogane
 
+## エクストリーム
+- タイトルの「💀 エクストリーム」。4〜6年の全問題・与ダメ×0.6・被ダメ×1.6・ボスHP×1.3・スコア×2（game.js の `EXTREME`）
+- クロガネ戦はなし。ワスレーヌ第2形態のあと、ブラックアウト→真っ白な世界で第3形態「無垢なるワスレーヌ」（images/boss/last3.png、game.js の `LAST3`）
+  - 毎ターン属性がランダムに変わる＋ランダムで教科を2ターン封印（同時に2つまで）。法衣で9999を超えている前提の強さ
+
+## 水曜イベントのキャラ（assets.js の devil / omikuji / scout）
+- 悪魔公ヴァルツ（images/devil.png）／おみくじ娘ミコト（images/omikuji.png）／スカウトのハヤテ（images/scout.png）
+
 ## アイテムとイベント
 - レアリティ：ノーマル★ `SKILLS`／レア★★ `SKILLS_HARD`／激レア★★★ `SKILLS_SR`／レジェンド☆ `SKILLS_LR`。出現率は game.js の `DROP_RATE`（難易度×場面ごとの%）。アイテムに `r: 1〜4` を付けると星とカード枠の色（白・青・金・虹）が変わる
 - アイテムは最大6個。7個目を入手したら、捨てるアイテムを選ぶ（game.js の `MAX_ITEMS`）

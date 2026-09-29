@@ -251,6 +251,14 @@ table{width:100%;font-size:20px;border-collapse:collapse}td{padding:3px}td:last-
 .skcard.rar3,.modalBox.rar3{border:5px solid #f59e0b;box-shadow:0 0 0 3px #111,0 0 26px #fbbf24,0 9px 0 3px #92400e}
 .skcard.rar4,.modalBox.rar4{border:6px solid transparent;background:linear-gradient(#fff,#fff) padding-box,linear-gradient(90deg,#f43f5e,#f59e0b,#eab308,#22c55e,#3b82f6,#a855f7,#f43f5e) 0 0/200% 100% border-box;box-shadow:0 0 0 3px #111,0 0 30px #c084fc;animation:pp .3s,rainbow 2s linear infinite}
 @keyframes rainbow{to{background-position:0 0,200% 0}}
+
+/* ---- 水曜イベントのキャラ・第3形態のブラックアウト ---- */
+#chara.lit{z-index:5}
+.slidein{animation:slidein .5s ease-out}
+@keyframes slidein{from{transform:translateX(420px);opacity:0}to{transform:none;opacity:1}}
+.runaway{transition:transform .6s ease-in,opacity .6s;transform:translateX(-700px);opacity:0}
+.blackout{position:absolute;inset:0;background:#000;opacity:0;animation:blackout 6s forwards}
+@keyframes blackout{0%{opacity:0}20%{opacity:1}45%{opacity:1}100%{opacity:0}}
 </style>
 </head>
 <body>

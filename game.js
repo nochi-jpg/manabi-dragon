@@ -15,6 +15,8 @@ const EMBLEM = { normal: 1.25, hard: 1.35 }; // 紋章（通常）・聖紋章�
 const MAX_ITEMS = 6;       // アイテムは最大6個
 const SKILL_DROP = 0.2;    // レッスン後にスキルを拾う確率
 const HARD = { dmg: 0.62, hurt: 1.5, hp: 1.2, score: 1.5 }; // ハードモード：与ダメ×0.62、被ダメ×1.5、スコア×1.5
+const EXTREME = { dmg: 0.6, hurt: 1.6, hp: 1.3, score: 2 }; // エクストリーム：ハードよりさらにきびしい
+const DIFF = () => S.extreme ? EXTREME : HARD;
 const HP_UP = [300, 120];  // 保健レッスンで増える最大HP（正解, 不正解）
 const OVERCOME = 450;      // 苦手こくふくで追加される能力（最初に正解した場合との差）
 const DMG_MUL = 1.85;      // 与ダメージ倍率（試合時間の調整用）
@@ -43,6 +45,8 @@ const HARD_PAT = [
 const KUROGANE = { hp: 55000, atk: 470, pat: ['issen', 'attack', 'charge', 'countdown', 'attack', 'multi', 'haste', 'seal', 'issen', 'guard'], cd: 2, brk: 0.16 };
 // ワスレーヌ・クロガネの属性は毎ターン回る → 弱点が 算数 ▶ 国語 ▶ 社会 ▶ 理科 ▶ 算数 の順に変わる
 const ROTATE_EL = ['国語', '社会', '理科', '算数'];
+// エクストリームのみ：ワスレーヌ第3形態（毎ターン属性がランダムに変わる＋教科封印 seal＝封印する確率・2ターン）
+const LAST3 = { hp: 350000, atk: 650, pat: ['attack', 'multi', 'issen', 'countdown', 'absorb', 'haste', 'charge', 'roar', 'multi', 'attack'], cd: 2, brk: 0.12, seal: 0.5 };
 // 背景画像がないときのグラデーション（だんだん荒廃→火山）
 const GRAD = [
   'linear-gradient(#6fb6ff,#cfe9ff 60%,#6fbf73 61%,#3f8f4a)',
@@ -160,13 +164,13 @@ async function readCSVFile(file) {
 
 // ---------- 状態 ----------
 let S, B;
-function newRun(grade) {
+function newRun(grade, extreme = false) {
   const els = []; while (els.length < 3) { const e = pick(EL); if (e !== els[els.length - 1]) els.push(e); }
   S = {
     grade, day: 0, hp: 600, maxHp: 600,
     st: { 国語: 100, 算数: 100, 理科: 100, 社会: 100, 英語: 100, 保健: 100 },
     skills: [], wrong: [], weekSeen: [], allSeen: [], used: new Set(), deck: {}, recent: [], bossEls: els,
-    bossEl: els[0], correct: 0, total: 0, dmg: 0, beaten: 0, overcome: 0, turnBonus: 0, reviveUsed: false,
+    extreme, bossEl: els[0], correct: 0, total: 0, dmg: 0, beaten: 0, overcome: 0, turnBonus: 0, reviveUsed: false,
   };
   B = null;
   tutorial();
@@ -349,7 +353,7 @@ function renderInfo() {
   const dowColor = w === 5 ? '#4f6bff' : w === 6 ? '#ff3b4f' : '#fff';
   $('#dayN').innerHTML = d === FINAL_DAY ? '<span class="box" style="font-size:34px">FINAL</span>' : `<span class="box">${d}日目</span>`;
   $('#dow').innerHTML = d === FINAL_DAY ? '<span style="font-size:28px">ファイナルデー</span>' : `<span style="color:${dowColor}">${DOW[w]}</span>`;
-  let next = S.grade === 0 ? '<span style="color:#ff5252">🔥HARD</span><br>' : '';
+  let next = S.extreme ? '<span style="color:#e879f9">💀EXTREME</span><br>' : S.grade === 0 ? '<span style="color:#ff5252">🔥HARD</span><br>' : '';
   if (B) {
     const good = strongAgainst(S.bossEl);
     next += `${bName()}<br><span style="color:${COLOR[good]}">${good}</span>が弱点`;
@@ -454,14 +458,14 @@ function title() {
     <img src="${ASSETS.logo}" alt="まなびドラゴン" class="logo" onerror="this.outerHTML='<h1 class=&quot;ol&quot;>まなびドラゴン</h1>'">
     <p style="text-align:center">勉強して竜を育て、3週間後の天使をたおせ！</p>
     <h2>学年をえらぶ</h2>
-    <div class="row"><button class="btn" data-g="4">4年生</button><button class="btn" data-g="5">5年生</button><button class="btn" data-g="6">6年生</button><button class="btn" data-g="0" style="background:#b91c1c">🔥 ハードモード</button></div>
-    <p style="text-align:center;font-size:15px;margin-top:4px">ハードモード：4〜6年の全問題から出題／与えるダメージ↓・受けるダメージ↑／スコア1.5倍</p>
+    <div class="row"><button class="btn" data-g="4">4年生</button><button class="btn" data-g="5">5年生</button><button class="btn" data-g="6">6年生</button><button class="btn" data-g="0" style="background:#b91c1c">🔥 ハード</button><button class="btn" data-g="0" data-x="1" style="background:linear-gradient(135deg,#4c1d95,#111)">💀 エクストリーム</button></div>
+    <p style="text-align:center;font-size:15px;margin-top:4px">ハード：4〜6年の全問題／与ダメ↓・被ダメ↑／スコア1.5倍　💀エクストリーム：さらにきびしい／スコア2倍</p>
     
     <div class="chips" style="margin-top:12px">${cnt}</div>
     <div class="row" style="align-items:center;font-size:17px"><label><input type="checkbox" id="append"> いまの問題に追加</label><button class="btn gray" id="csvBtn" style="font-size:18px;padding:8px 16px">📂 問題CSVを読みこむ</button></div>
     <input type="file" id="csv" accept=".csv,text/csv" hidden>`;
   $('#panel').style.display = 'flex'; $('#panel').classList.add('title');
-  $('#panelIn').querySelectorAll('[data-g]').forEach(b => b.onclick = () => newRun(+b.dataset.g));
+  $('#panelIn').querySelectorAll('[data-g]').forEach(b => b.onclick = () => newRun(+b.dataset.g, !!b.dataset.x));
   $('#csvBtn').onclick = () => $('#csv').click();
   $('#csv').onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
@@ -533,36 +537,47 @@ async function goDay(d) {
   lessonDay();
 }
 const dim = on => $('#dim').classList.toggle('on', on);
+// 水曜のキャラ：暗転中もキャラだけは明るく見せる
+function eventChara(c) { setChara(imgArt([c.img], c.emoji)); $('#chara').classList.add('lit'); }
+function eventCharaOff() { $('#chara').classList.remove('lit'); }
 async function wedEvent() {
   const x = Math.random(), M = ASSETS.master.name;
-  if (x < 0.3) {                                   // 拾った！
-    dim(true); await wait(400);
+  if (x < 0.3) {                                   // 拾った！：スカウトのハヤテが落としていく
+    const C = ASSETS.scout;
+    setChara(imgArt([C.img], C.emoji, 'slidein'));
+    await say(`${C.name}「${pick(C.lines.hello)}」`, 0);
+    const ch = $('#chara .art, #chara .emo'); if (ch) ch.classList.add('runaway');
+    await wait(600); setChara('');
     const k = skillChoices(1)[0];
-    await say(`暗やみの中で、何かが光っている…`, 1200);
-    await say(`「${iName(k)}」を拾った！`, 900);
+    await say('…あれ？ ハヤテが何か落としていったぞ！', 1200);
     await gainItem(k, '拾った');
-    dim(false);
+    await say(`${C.name}（遠くから）「${pick(C.lines.after)}」`, 0);
   } else if (x < 0.6) {                            // 師匠からのおくりもの（暗転なし）
     const top = ['国語', '算数', '理科', '社会', '英語'].reduce((a, s) => eff(s) > eff(a) ? s : a, '国語');
     const k = emblemGift(top);
     await say(`${M}「がんばっている君に、これを」`, 0);
     await gainItem(k, 'もらった');
-  } else if (x < 0.9) {                            // くじびき
-    dim(true); await wait(400);
-    await say('🎰 くじびきイベント！', 1200);
+  } else if (x < 0.9) {                            // くじびき：おみくじ娘ミコト
+    const C = ASSETS.omikuji;
+    dim(true); eventChara(C); await wait(400);
+    await say('🎐 くじびきイベント！', 1100);
+    await say(`${C.name}「${pick(C.lines.hello)}」`, 0);
     await new Promise(res => {
-      msg('3つのうち、ひとつをえらんでね');
+      msg(`${C.name}「……3つのうち、ひとつ。」`);
       setChoices('c3', skillChoices(3).map(k => ({
         html: `<button class="skcard pop${rCls(k)}"><span class="skic">${skIcon(k)}</span>${skTitle(k)}${k.desc}</button>`,
         on: async () => { clearChoices(); await gainItem(k, 'くじで当たった'); res(); },
       })));
     });
-    dim(false);
-  } else {                                         // 悪魔のささやき
-    dim(true); await wait(400);
-    await say('😈 悪魔のささやき…', 1300);
+    await say(`${C.name}「${pick(C.lines.after)}」`, 0);
+    eventCharaOff(); dim(false);
+  } else {                                         // 悪魔のささやき：悪魔公ヴァルツ
+    const D = ASSETS.devil;
+    dim(true); eventChara(D); await wait(400);
+    await say('😈 悪魔のささやき…', 1200);
+    await say(`${D.name}「${pick(D.lines.hello)}」`, 0);
     const yes = await new Promise(res => {
-      msg(`<div>「今持っているアイテムを<b style="color:#fca5a5">すべて捨てれば</b>、かわりにアイテムを<b style="color:#fca5a5">${MAX_ITEMS}個</b>くれてやろう…<br>ただし、おまえの<b style="color:#fca5a5">一番高い力</b>を少しいただくがな…」</div><div class="sub">左のリストをクリックすると、今のアイテムの効果を確認できるよ</div>`);
+      msg(`<div>${D.name}「今持っているアイテムを<b style="color:#fca5a5">すべて捨てれば</b>、かわりにアイテムを<b style="color:#fca5a5">${MAX_ITEMS}個</b>くれてやろう…<br>ただし、おまえの<b style="color:#fca5a5">一番高い力</b>を少しいただくがな…」</div><div class="sub">左のリストをクリックすると、今のアイテムの効果を確認できるよ</div>`);
       setChoices('c2', [
         { html: '<button class="skcard pop" style="text-align:center"><b style="color:#7c3aed">はい</b>すべて捨てて、ランダムに6個もらう<br>（一番高いステータスが×0.9）</button>', on: () => res(true) },
         { html: '<button class="skcard pop" style="text-align:center"><b>いいえ</b>今のアイテムのままにする</button>', on: () => res(false) },
@@ -570,14 +585,15 @@ async function wedEvent() {
     });
     clearChoices();
     if (yes) {
+      await say(`${D.name}「${pick(D.lines.yes)}」`, 0);
       S.skills = []; renderSide();
       await say('アイテムが闇にのみこまれた…！ そして…', 1300);
       const mx = Math.max(...SUBJ.map(x => S.st[x])), top = pick(SUBJ.filter(x => S.st[x] === mx)); // 同値ならランダム
       const b0 = S.st[top]; S.st[top] = Math.max(1, Math.floor(S.st[top] * 0.9)); renderSide(); anim('#face', 'hurt');
       await say(`😈 <span style="color:${COLOR[top]}">${top}</span>の力をうばわれた！ ${b0} → ${S.st[top]}`, 1400);
       for (let i = 0; i < MAX_ITEMS; i++) await gainItem(skillChoices(1, 'devil')[0], '悪魔からもらった');
-    } else await say('「…つまらんやつだ」 悪魔は消えていった。', 1300);
-    dim(false);
+    } else await say(`${D.name}「${pick(D.lines.no)}」`, 0);
+    eventCharaOff(); dim(false);
   }
   await wait(300);
 }
@@ -648,7 +664,7 @@ async function finalDay() {
 function battleStart(special) {
   const kuro = special === 'kurogane';
   const idx = kuro ? 4 : weekOf(S.day), last = idx === 3;
-  const st = kuro ? KUROGANE : S.grade === 0 ? { ...STAGES[idx], ...HARD_PAT[idx], hp: STAGES[idx].hp * HARD.hp, hp2: STAGES[idx].hp2 && STAGES[idx].hp2 * HARD.hp } : STAGES[idx];
+  const st = kuro ? KUROGANE : S.grade === 0 ? { ...STAGES[idx], ...HARD_PAT[idx], hp: STAGES[idx].hp * DIFF().hp, hp2: STAGES[idx].hp2 && STAGES[idx].hp2 * DIFF().hp } : STAGES[idx];
   if (last || kuro) S.bossEl = ROTATE_EL[0];
   B = {
     idx, st, key: kuro ? 'kurogane' : last ? 'last' : S.bossEl, sealed: false, tailUsed: false,
@@ -663,8 +679,8 @@ function battleStart(special) {
   say(`${bName()}があらわれた！`, 1300).then(() => { const L = ASSETS.lines[B.key]; return say(`${bName()}「${B.rematch && L.rematch ? L.rematch : pickLine(L.intro)}」`, 0); }).then(showCmd);
 }
 const pickLine = v => Array.isArray(v) ? pick(v) : v;
-function bName() { const b = bossData(B.key); return B.phase2 && b.name2 ? b.name2 : b.name; }
-function drawBoss() { setChara(`<div id="bossArt" style="position:relative">${bossArt(B.key, B.phase2)}</div>`); }
+function bName() { const b = bossData(B.key); return B.phase3 && b.name3 ? b.name3 : B.phase2 && b.name2 ? b.name2 : b.name; }
+function drawBoss() { const b = bossData(B.key); setChara(`<div id="bossArt" style="position:relative">${B.phase3 ? imgArt([b.img3], '👼') : bossArt(B.key, B.phase2)}</div>`); }
 
 // ----- 行動予告 -----
 const INTENT = {
@@ -691,7 +707,7 @@ function nextIntent() {
   else {
     const pat = B.phase2 && B.st.pat2 ? B.st.pat2 : B.st.pat;
     type = pat[B.pi++ % pat.length];
-    if (type === 'attack' && B.idx >= 1 && Math.random() < (S.grade === 0 ? 0.45 : 0.3)) type = 'multi';
+    if (type === 'attack' && B.idx >= 1 && Math.random() < (S.extreme ? 0.55 : S.grade === 0 ? 0.45 : 0.3)) type = 'multi';
   }
   if (type === 'shift') B.shiftTo = pick(EL.filter(e => e !== S.bossEl));
   return { type, ...INTENT[type]() };
@@ -725,10 +741,10 @@ function showCmd() {
     : it === 'charge' ? '💢 ばつぐんの教科で攻撃すると、ためを止められる'
     : it === 'count' ? `⏳ あと ${fmt(Math.max(0, B.brkNeed - B.brk))} ダメージでブレイク！`
     : it === 'issen' ? '⚔ 一閃が来る！保健でガードすると半分' : it === 'stun' ? '😵 大チャンス！ダメージ2倍'
-    : B.sealed ? '🔒 保健が封印されている！' : 'どの教科でたたかう？');
+    : B.sealed ? '🔒 保健が封印されている！' : B.subSeal && Object.keys(B.subSeal).length ? `🔒 封印中：${Object.keys(B.subSeal).join('・')}` : 'どの教科でたたかう？');
   setChoices('c3', SUBJ.map(s => {
-    const sealed = B.sealed && s === '保健';
-    return { html: `<button class="sbtn pop" style="background:${BTNC[s]}${sealed ? ';opacity:.35;cursor:not-allowed' : ''}" ${sealed ? 'disabled' : ''}>${ICON[s]} ${s}<small>${eff(s)}</small><span class="tag">${sealed ? '🔒封印中' : tagFor(s)}</span></button>`, on: sealed ? null : () => doTurn(s) };
+    const sealed = (B.sealed && s === '保健') || !!(B.subSeal && B.subSeal[s]);
+    return { html: `<button class="sbtn pop" style="background:${BTNC[s]}${sealed ? ';opacity:.35;cursor:not-allowed' : ''}" ${sealed ? 'disabled' : ''}>${ICON[s]} ${s}<small>${eff(s)}</small><span class="tag">${sealed ? (B.subSeal && B.subSeal[s] ? `🔒あと${B.subSeal[s]}` : '🔒封印中') : tagFor(s)}</span></button>`, on: sealed ? null : () => doTurn(s) };
   }));
 }
 
@@ -804,7 +820,7 @@ async function doTurn(s) {
       await say(`💗 HPが${fmt(real)}回復！ ガードのかまえ！`);
     } else {
       const m = mult(s, S.bossEl);
-      let d = (60 + eff(s) * 0.5) * DMG_MUL * (S.grade === 0 ? HARD.dmg : 1) * m;
+      let d = (60 + eff(s) * 0.5) * DMG_MUL * (S.grade === 0 ? DIFF().dmg : 1) * m;
       if (has('combo')) d *= 1 + Math.min(1, 0.25 * (B.combo - 1));
       if (has('quick') && r.sec <= 5) d *= 1.5;
       if (has('breaker') && B.cd > 0) d *= 1.5;
@@ -844,7 +860,7 @@ async function doTurn(s) {
       await say(t); updateUI();
       if (B.cd > 0 && !B.broken && B.brk >= B.brkNeed) { B.broken = true; anim('#stage', 'shakeBig'); updateUI(); await say('💥 ブレイク！ 大技を止めた！'); }
       if (B.hp > 0 && B.hp <= B.max / 2 && !B.pinched) {
-        B.pinched = true; const L = ASSETS.lines[B.key], line = B.phase2 && L.pinch2 ? L.pinch2 : pickLine(L.pinch);
+        B.pinched = true; const L = ASSETS.lines[B.key], line = B.phase3 ? L.pinch3 : B.phase2 && L.pinch2 ? L.pinch2 : pickLine(L.pinch);
         if (line) { anim('#chara', 'hurt'); await say(`${bName()}「${line}」`, 0); }
       }
       if (B.idx === 3 && B.phase2 && !B.sanctUsed && B.hp > 0 && B.hp <= B.max / 2) {
@@ -885,14 +901,23 @@ async function doTurn(s) {
     }
   }
   if (B.hp <= 0 && B.idx === 3 && !B.phase2) return lastRevive();
+  if (B.hp <= 0 && B.idx === 3 && !B.phase3 && S.extreme) return lastRevive3();
   if (B.hp <= 0) return victory();
   // --- ボスの行動 ---
   await bossAct(it);
   if (S.hp <= 0 && !(await survive())) return;
   B.pGuard = false; B.pWeak = false; B.turn++;
   if (B.sanct > 0) { if (B.sanctNew) B.sanctNew = false; else if (--B.sanct === 0) { updateUI(); await say('サンクチュアリの光が消えた！', 1100); } }
+  if (B.phase3) {                          // 第3形態：教科封印（2ターンで解除・同時に2つまで）
+    B.subSeal = B.subSeal || {};
+    for (const k of Object.keys(B.subSeal)) if (--B.subSeal[k] <= 0) delete B.subSeal[k];
+    if (Object.keys(B.subSeal).length < 2 && Math.random() < LAST3.seal) {
+      const x = pick(SUBJ.filter(k => !B.subSeal[k])); B.subSeal[x] = 2; anim('#face', 'hurt'); updateUI();
+      await say(`🔒 ${bName()}が<span style="color:${COLOR[x]}">${x}</span>を封印した！（2ターン使えない）`, 1200);
+    }
+  }
   if (B.idx >= 3) {
-    S.bossEl = ROTATE_EL[(ROTATE_EL.indexOf(S.bossEl) + 1) % 4]; updateUI(); anim('#chara', 'hurt');
+    S.bossEl = B.phase3 ? pick(EL.filter(e => e !== S.bossEl)) : ROTATE_EL[(ROTATE_EL.indexOf(S.bossEl) + 1) % 4]; updateUI(); anim('#chara', 'hurt');
     await say(`🔄 ${bName()}の弱点が「<span style="color:${COLOR[strongAgainst(S.bossEl)]}">${strongAgainst(S.bossEl)}</span>」に変わった！`, 900);
   }
   B.intent = nextIntent(); updateUI(); showCmd();
@@ -911,7 +936,7 @@ async function survive() {
   await say(`${ASSETS.player.name}はたおれてしまった…`, 1500); result(false); return false;
 }
 async function hitP(raw, label, noWeak, pure) {
-  let d = raw * (S.grade === 0 && !pure ? HARD.hurt : 1); if (B.pGuard) d *= 0.5; if (has('shield')) d *= 0.7; if (has('h_bigshield')) d *= 0.5; if (has('sr_aegis')) d *= 0.35; if (B.pWeak && !noWeak && !pure) d *= 1.3;
+  let d = raw * (S.grade === 0 && !pure ? DIFF().hurt : 1); if (B.pGuard) d *= 0.5; if (has('shield')) d *= 0.7; if (has('h_bigshield')) d *= 0.5; if (has('sr_aegis')) d *= 0.35; if (B.pWeak && !noWeak && !pure) d *= 1.3;
   d = Math.round(d); S.hp = Math.max(0, S.hp - d);
   fxHurt(d); await wait(350); updateUI();
   await say(`${label}${B.pGuard ? '（ガード）' : ''} ${fmt(d)}のダメージ！`, 1000);
@@ -963,6 +988,26 @@ async function lastRevive() {
   await say(`${bName()}として復活した！ HP全回復・攻撃力アップ！`, 1600);
   showCmd();
 }
+// エクストリームのみ：第3形態（ブラックアウト→真っ白な世界）
+async function lastRevive3() {
+  S.beaten++; S.turnBonus += Math.max(0, 12 - B.turn) * 300;
+  anim('#stage', 'shakeBig'); $('#intent').style.display = 'none'; $('#cdBox').style.display = 'none'; clearChoices();
+  await say(`${bName()}「${ASSETS.lines.last.defeat}」`, 0);
+  const ba = $('#bossArt'); ba.style.transition = 'opacity 1.2s'; ba.style.opacity = 0;
+  fxAdd(`<div class="blackout" style="animation-duration:${6 * SPD}s"></div>`, 6000 * SPD + 200);
+  await wait(1600);
+  B.phase3 = true; B.st = LAST3; B.pinched = false; B.hp = B.max = LAST3.hp; B.atk = LAST3.atk; B.atkMul = 1; B.pi = 0; B.cd = 0; B.brk = 0; B.broken = false;
+  B.forced = null; B.interrupt = false; B.pGuard = false; B.pWeak = false; B.combo = 0; B.turn = 0; B.sanct = 0; B.subSeal = {};
+  if (B.half < 3 && has('half')) B.half = 3;
+  $('#bossHp').style.display = 'none'; $('#msgbar').style.display = 'none';
+  setBg('', 'linear-gradient(#fff,#fff)'); drawBoss();
+  await wait(4400);
+  $('#msgbar').style.display = 'flex'; $('#bossHp').style.display = 'block';
+  B.intent = nextIntent(); $('#intent').style.display = 'block'; updateUI();
+  await say(`${bName()}「${ASSETS.lines.last.intro3}」`, 0);
+  await say(`${bName()}「${ASSETS.lines.last.pinch3}」`, 0);
+  showCmd();
+}
 async function victory() {
   S.beaten++; S.turnBonus += Math.max(0, 12 - B.turn) * 600;
   const last = B.idx === 3;
@@ -971,10 +1016,12 @@ async function victory() {
   const DL = ASSETS.lines[B.key];
   if (B.rematch && DL.rematchDefeat) await say(`${bName()}「${DL.rematchDefeat}」`, 0);   // 再会して倒したとき
   if (B.idx === 2 && DL.final) await say(`${bName()}「${DL.final}」`, 0);                  // 21日目：あのお方の復活
+  else if (B.phase3) await say(`${bName()}「${DL.defeat3}」`, 0);
   else if (!B.rematch) await say(`${bName()}「${pickLine(DL.defeat)}」`, 0);
   await say(`🎉 ${bName()}をたおした！（${B.turn + 1}ターン）`, 1800);
   if (B.idx === 4) { S.kuroWin = true; await ending('kuroWin'); return result(true); }
-  if (last && S.grade === 0) return trialIntro();
+  if (B.phase3) { S.trueWin = true; await ending('extreme'); return result(true); }
+  if (last && S.grade === 0 && !S.extreme) return trialIntro();
   if (last) { await ending('clear'); return result(true); }
   S.hp = S.maxHp; renderSide();
   await say('HPが全回復した！', 900);
@@ -1043,27 +1090,28 @@ function result(clear) {
     ['クリアボーナス', clear ? 30000 + S.hp * 10 : 0],
   ];
   if (S.kuroWin) rows.push(['⚔ 剣聖クロガネに勝利', 50000]);
+  if (S.trueWin) rows.push(['☆ 無垢なるワスレーヌに勝利', 100000]);
   // クリア時のみ：クリアタイムとごく小さなボーナス（30分より速いほど1秒につき1点）
   const sec = clear && S.t0 ? Math.round((Date.now() - S.t0) / 1000) : 0;
   const clock = `${Math.floor(sec / 60)}分${String(sec % 60).padStart(2, '0')}秒`;
   if (clear) rows.push([`クリアタイム ${clock}`, Math.max(0, TIME_BONUS_SEC - sec)]);
-  if (S.grade === 0) rows.push(['ハードモードボーナス ×1.5', Math.round(rows.reduce((a, r) => a + r[1], 0) * (HARD.score - 1))]);
+  if (S.grade === 0) rows.push([`${S.extreme ? 'エクストリーム' : 'ハードモード'}ボーナス ×${DIFF().score}`, Math.round(rows.reduce((a, r) => a + r[1], 0) * (DIFF().score - 1))]);
   const score = rows.reduce((a, r) => a + r[1], 0);
-  const base = score / (S.grade === 0 ? HARD.score : 1);
+  const base = score / (S.grade === 0 ? DIFF().score : 1);
   let rank = base >= RANK.S ? 'S' : base >= RANK.A ? 'A' : base >= RANK.B ? 'B' : base >= RANK.C ? 'C' : 'D';
   if (rank === 'S' && !(clear && acc >= RANK.sAcc)) rank = 'A';
   if (!clear && (rank === 'S' || rank === 'A')) rank = 'B';
-  const sNote = rank === 'S' ? '' : `<p class="rnote">Sランクの条件：クリア・正答率${RANK.sAcc}%以上・${fmt(RANK.S * (S.grade === 0 ? HARD.score : 1))}点以上</p>`;
-  const gname = S.grade ? S.grade + '年' : 'ハードモード';
-  const share = `【まなびドラゴン】${gname} ${S.kuroWin ? '完全勝利！' : clear ? 'クリア！' : `${S.day}日目でたおれた`} スコア${fmt(score)}（ランク${rank}）正答率${acc}%${clear ? ` タイム${clock}` : ''}`;
+  const sNote = rank === 'S' ? '' : `<p class="rnote">Sランクの条件：クリア・正答率${RANK.sAcc}%以上・${fmt(RANK.S * (S.grade === 0 ? DIFF().score : 1))}点以上</p>`;
+  const gname = S.grade ? S.grade + '年' : S.extreme ? 'エクストリーム' : 'ハードモード';
+  const share = `【まなびドラゴン】${gname} ${S.trueWin ? '真・完全勝利！' : S.kuroWin ? '完全勝利！' : clear ? 'クリア！' : `${S.day}日目でたおれた`} スコア${fmt(score)}（ランク${rank}）正答率${acc}%${clear ? ` タイム${clock}` : ''}`;
   const RCOL = { S: '#ffd54a', A: '#f472b6', B: '#38bdf8', C: '#4ade80', D: '#cbd5e1' };
   const W = S.wrong, PER = 5, pages = Math.max(1, Math.ceil(W.length / PER));
   $('#panelIn').classList.add('resmode');
   $('#panelIn').innerHTML = `
     <div class="rgrid">
       <div class="rleft">
-        <h1 class="ol">${S.kuroWin ? '⚔ 完全勝利！' : clear ? '🏆 ゲームクリア！' : '💀 ゲームオーバー'}</h1>
-        ${S.kuroWin ? '<p class="rsub">剣聖クロガネの試練をのりこえた！</p>' : ''}
+        <h1 class="ol">${S.trueWin ? '☆ 真・完全勝利！' : S.kuroWin ? '⚔ 完全勝利！' : clear ? '🏆 ゲームクリア！' : '💀 ゲームオーバー'}</h1>
+        ${S.trueWin ? '<p class="rsub">ワスレーヌの本当の姿をたおした！</p>' : S.kuroWin ? '<p class="rsub">剣聖クロガネの試練をのりこえた！</p>' : ''}
         <p class="rsub">${gname}　正答率 ${acc}%${clear ? `　⏱ ${clock}` : ''}</p>
         <div class="rart">${playerArt('width:130px;height:130px;font-size:96px')}</div>
         <div id="rScore" class="rscore">0</div>
@@ -1100,7 +1148,7 @@ function result(clear) {
 
 // 画像の先読み（ゲーム中の読み込み待ちをなくす）
 (function preload() {
-  const A = ASSETS, list = [A.logo, A.master.img, A.merchant.img, A.kuroganeUp.img, ...Object.values(A.boss).flatMap(b => [b.img, b.img2]),
+  const A = ASSETS, list = [A.logo, A.master.img, A.merchant.img, A.kuroganeUp.img, ...Object.values(A.boss).flatMap(b => [b.img, b.img2, b.img3]), A.devil.img, A.omikuji.img, A.scout.img,
     ...Object.values(A.bg).flat()];
   const P = A.player, keys = Object.values(A.romaji).concat('base');
   for (const k of keys) for (let t = 0; t < 3; t++) list.push(`${P.dir}${k}_${t}.png`);
