@@ -19,6 +19,8 @@ const HP_UP = [300, 120];  // 保健レッスンで増える最大HP（正解, �
 const OVERCOME = 450;      // 苦手こくふくで追加される能力（最初に正解した場合との差）
 const DMG_MUL = 1.85;      // 与ダメージ倍率（試合時間の調整用）
 const FINAL_DAY = 22;
+// ランク基準（ハードはスコアを1.5で割って判定）。Sはクリア＋正答率90%以上も必要、ゲームオーバーは最高B
+const RANK = { S: 320000, A: 280000, B: 200000, C: 120000, sAcc: 90 };
 const TIME_BONUS_SEC = 1800; // クリアタイムボーナス：30分−かかった秒数（最大1800点）
 
 // ボス設定：hp・atk・行動パターン（cd＝カウントダウンのターン数、brk＝ブレイクに必要なダメージ割合）
@@ -886,7 +888,11 @@ function result(clear) {
   if (clear) rows.push([`クリアタイム ${clock}`, Math.max(0, TIME_BONUS_SEC - sec)]);
   if (S.grade === 0) rows.push(['ハードモードボーナス ×1.5', Math.round(rows.reduce((a, r) => a + r[1], 0) * (HARD.score - 1))]);
   const score = rows.reduce((a, r) => a + r[1], 0);
-  const rank = score >= 330000 ? 'S' : score >= 250000 ? 'A' : score >= 160000 ? 'B' : score >= 80000 ? 'C' : 'D';
+  const base = score / (S.grade === 0 ? HARD.score : 1);
+  let rank = base >= RANK.S ? 'S' : base >= RANK.A ? 'A' : base >= RANK.B ? 'B' : base >= RANK.C ? 'C' : 'D';
+  if (rank === 'S' && !(clear && acc >= RANK.sAcc)) rank = 'A';
+  if (!clear && (rank === 'S' || rank === 'A')) rank = 'B';
+  const sNote = rank === 'S' ? '' : `<p class="rskip" style="opacity:.75">Sランクの条件：クリア・正答率${RANK.sAcc}%以上・${fmt(RANK.S * (S.grade === 0 ? HARD.score : 1))}点以上</p>`;
   const gname = S.grade ? S.grade + '年' : 'ハードモード';
   const share = `【まなびドラゴン】${gname} ${S.kuroWin ? '完全勝利！' : clear ? 'クリア！' : `${S.day}日目でたおれた`} スコア${fmt(score)}（ランク${rank}）正答率${acc}%${clear ? ` タイム${clock}` : ''}`;
   const RCOL = { S: '#ffd54a', A: '#f472b6', B: '#38bdf8', C: '#4ade80', D: '#cbd5e1' };
@@ -899,7 +905,7 @@ function result(clear) {
         <div id="rRank" class="rrank" style="color:${RCOL[rank]}">${rank}</div></div>
     </div>
     <div class="rlist">${rows.map(r => `<div class="rrow"><span>${r[0]}</span><b>${fmt(r[1])}</b></div>`).join('')}</div>
-    <div id="rRest" style="opacity:0;transition:opacity .5s">
+    <div id="rRest" style="opacity:0;transition:opacity .5s">${sNote}
     ${S.wrong.length ? `<h2>📝 ふりかえり（まだ苦手な問題）</h2>${S.wrong.map(q => `<div class="exl">${esc(q.q)}　→ こたえ：<b style="color:#c2410c">${esc(q.c[0])}</b>${q.e ? `<br>💡${esc(q.e)}` : ''}</div>`).join('')}` : '<h2>苦手な問題はぜんぶこくふくした！</h2>'}
     <div class="row" style="margin-top:14px"><button class="btn gold" id="again">もういちど</button><button class="btn gray" id="copy">結果をコピー</button></div></div>
     <p class="rskip" id="rSkip">クリックでスキップ</p>`;
