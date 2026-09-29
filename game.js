@@ -524,9 +524,9 @@ async function wedEvent() {
     dim(true); await wait(400);
     await say('😈 悪魔のささやき…', 1300);
     const yes = await new Promise(res => {
-      msg(`<div>「今持っているアイテムを<b style="color:#fca5a5">すべて捨てれば</b>、かわりにアイテムを<b style="color:#fca5a5">${MAX_ITEMS}個</b>くれてやろう…」</div><div class="sub">左のリストをクリックすると、今のアイテムの効果を確認できるよ</div>`);
+      msg(`<div>「今持っているアイテムを<b style="color:#fca5a5">すべて捨てれば</b>、かわりにアイテムを<b style="color:#fca5a5">${MAX_ITEMS}個</b>くれてやろう…<br>ただし、おまえの<b style="color:#fca5a5">一番高い力</b>を少しいただくがな…」</div><div class="sub">左のリストをクリックすると、今のアイテムの効果を確認できるよ</div>`);
       setChoices('c2', [
-        { html: '<button class="skcard pop" style="text-align:center"><b style="color:#7c3aed">はい</b>すべて捨てて、ランダムに6個もらう</button>', on: () => res(true) },
+        { html: '<button class="skcard pop" style="text-align:center"><b style="color:#7c3aed">はい</b>すべて捨てて、ランダムに6個もらう<br>（一番高いステータスが×0.9）</button>', on: () => res(true) },
         { html: '<button class="skcard pop" style="text-align:center"><b>いいえ</b>今のアイテムのままにする</button>', on: () => res(false) },
       ]);
     });
@@ -534,6 +534,9 @@ async function wedEvent() {
     if (yes) {
       S.skills = []; renderSide();
       await say('アイテムが闇にのみこまれた…！ そして…', 1300);
+      const mx = Math.max(...SUBJ.map(x => S.st[x])), top = pick(SUBJ.filter(x => S.st[x] === mx)); // 同値ならランダム
+      const b0 = S.st[top]; S.st[top] = Math.max(1, Math.floor(S.st[top] * 0.9)); renderSide(); anim('#face', 'hurt');
+      await say(`😈 <span style="color:${COLOR[top]}">${top}</span>の力をうばわれた！ ${b0} → ${S.st[top]}`, 1400);
       for (let i = 0; i < MAX_ITEMS; i++) await gainItem(skillChoices(1)[0], '悪魔からもらった');
     } else await say('「…つまらんやつだ」 悪魔は消えていった。', 1300);
     dim(false);
