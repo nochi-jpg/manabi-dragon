@@ -369,6 +369,7 @@ function dateCut(from, to) {
 
 // ---------- タイトル ----------
 function title() {
+  $('#panelIn').classList.remove('resmode');
   S = null; B = null;
   setBg(ASSETS.bg.title, GRAD[0]);
   ['#side', '#info', '#bossHp', '#intent', '#cdBox'].forEach(s => $(s).style.display = 'none');
@@ -399,6 +400,7 @@ function title() {
 
 // ---------- チュートリアル（1画面・1クリックで1日目へ） ----------
 function tutorial() {
+  $('#panelIn').classList.remove('resmode');
   const P = $('#panel'); P.classList.remove('title');
   const node = (s, sub) => `<div class="tnode" style="background:${BTNC[s]}">${s}<small>${sub}</small></div>`;
   const b = ASSETS.boss;
@@ -903,7 +905,7 @@ async function resultShow(rows, total) {
   let skip = false, cur = 0;
   const finish = () => {
     skip = true; els.forEach(e => e.classList.add('on')); sc.textContent = fmt(total);
-    $('#rRank').classList.add('on'); $('#rRest').style.opacity = 1; $('#rSkip').style.display = 'none';
+    $('#rRank').classList.add('on'); document.querySelectorAll('.rfade').forEach(e => e.style.opacity = 1); $('#rSkip').style.display = 'none';
   };
   P.onclick = e => { if (!e.target.closest('button')) finish(); };
   const count = (from, to, ms) => new Promise(res => {
@@ -948,23 +950,45 @@ function result(clear) {
   let rank = base >= RANK.S ? 'S' : base >= RANK.A ? 'A' : base >= RANK.B ? 'B' : base >= RANK.C ? 'C' : 'D';
   if (rank === 'S' && !(clear && acc >= RANK.sAcc)) rank = 'A';
   if (!clear && (rank === 'S' || rank === 'A')) rank = 'B';
-  const sNote = rank === 'S' ? '' : `<p class="rskip" style="opacity:.75">Sランクの条件：クリア・正答率${RANK.sAcc}%以上・${fmt(RANK.S * (S.grade === 0 ? HARD.score : 1))}点以上</p>`;
+  const sNote = rank === 'S' ? '' : `<p class="rnote">Sランクの条件：クリア・正答率${RANK.sAcc}%以上・${fmt(RANK.S * (S.grade === 0 ? HARD.score : 1))}点以上</p>`;
   const gname = S.grade ? S.grade + '年' : 'ハードモード';
   const share = `【まなびドラゴン】${gname} ${S.kuroWin ? '完全勝利！' : clear ? 'クリア！' : `${S.day}日目でたおれた`} スコア${fmt(score)}（ランク${rank}）正答率${acc}%${clear ? ` タイム${clock}` : ''}`;
   const RCOL = { S: '#ffd54a', A: '#f472b6', B: '#38bdf8', C: '#4ade80', D: '#cbd5e1' };
+  const W = S.wrong, PER = 5, pages = Math.max(1, Math.ceil(W.length / PER));
+  $('#panelIn').classList.add('resmode');
   $('#panelIn').innerHTML = `
-    <h1 class="ol">${S.kuroWin ? '⚔ 完全勝利！' : clear ? '🏆 ゲームクリア！' : '💀 ゲームオーバー'}</h1>${S.kuroWin ? '<p style="text-align:center">剣聖クロガネの試練をのりこえた！</p>' : ''}
-    <div class="row" style="align-items:center">
-      <div style="width:180px;height:180px">${playerArt('width:180px;height:180px;font-size:120px')}</div>
-      <div style="text-align:center;min-width:360px"><p>${gname}　正答率 ${acc}%${clear ? `　⏱ ${clock}` : ''}</p>
+    <div class="rgrid">
+      <div class="rleft">
+        <h1 class="ol">${S.kuroWin ? '⚔ 完全勝利！' : clear ? '🏆 ゲームクリア！' : '💀 ゲームオーバー'}</h1>
+        ${S.kuroWin ? '<p class="rsub">剣聖クロガネの試練をのりこえた！</p>' : ''}
+        <p class="rsub">${gname}　正答率 ${acc}%${clear ? `　⏱ ${clock}` : ''}</p>
+        <div class="rart">${playerArt('width:130px;height:130px;font-size:96px')}</div>
         <div id="rScore" class="rscore">0</div>
-        <div id="rRank" class="rrank" style="color:${RCOL[rank]}">${rank}</div></div>
+        <div id="rRank" class="rrank" style="color:${RCOL[rank]}">${rank}</div>
+        <div class="rfade">${sNote}
+          <div class="rbtns"><button class="btn gold" id="again">もういちど</button><button class="btn gray" id="copy">結果をコピー</button></div></div>
+      </div>
+      <div class="rright">
+        <div class="rlist">${rows.map(r => `<div class="rrow"><span>${r[0]}</span><b>${fmt(r[1])}</b></div>`).join('')}</div>
+        <div class="rfade rreview">
+          <div class="rrhead"><b>📝 ふりかえり${W.length ? `（まだ苦手な問題 ${W.length}問）` : ''}</b>
+            ${pages > 1 ? '<span class="rpager"><button id="rPrev">◀</button><span id="rPage"></span><button id="rNext">▶</button></span>' : ''}</div>
+          <div id="rWrong">${W.length ? '' : '<p style="text-align:center;margin-top:30px;font-size:22px">苦手な問題はぜんぶこくふくした！🎉</p>'}</div>
+        </div>
+      </div>
     </div>
-    <div class="rlist">${rows.map(r => `<div class="rrow"><span>${r[0]}</span><b>${fmt(r[1])}</b></div>`).join('')}</div>
-    <div id="rRest" style="opacity:0;transition:opacity .5s">${sNote}
-    ${S.wrong.length ? `<h2>📝 ふりかえり（まだ苦手な問題）</h2>${S.wrong.map(q => `<div class="exl">${esc(q.q)}　→ こたえ：<b style="color:#c2410c">${esc(q.c[0])}</b>${q.e ? `<br>💡${esc(q.e)}` : ''}</div>`).join('')}` : '<h2>苦手な問題はぜんぶこくふくした！</h2>'}
-    <div class="row" style="margin-top:14px"><button class="btn gold" id="again">もういちど</button><button class="btn gray" id="copy">結果をコピー</button></div></div>
     <p class="rskip" id="rSkip">クリックでスキップ</p>`;
+  let page = 0;
+  const showPage = () => {
+    if (!W.length) return;
+    $('#rWrong').innerHTML = W.slice(page * PER, page * PER + PER).map(q => `<div class="exl">${esc(q.q)}　→ こたえ：<b style="color:#c2410c">${esc(q.c[0])}</b>${q.e ? `<br><span class="rexp">💡${esc(q.e)}</span>` : ''}</div>`).join('');
+    if (pages > 1) $('#rPage').textContent = `${page + 1} / ${pages}`;
+  };
+  showPage();
+  if (pages > 1) {
+    $('#rPrev').onclick = e => { e.stopPropagation(); page = (page + pages - 1) % pages; showPage(); };
+    $('#rNext').onclick = e => { e.stopPropagation(); page = (page + 1) % pages; showPage(); };
+  }
   resultShow(rows, score);
   $('#panel').style.display = 'flex';
   $('#again').onclick = title;
