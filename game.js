@@ -116,8 +116,8 @@ const nextBossDay = d => d >= FINAL_DAY ? FINAL_DAY : Math.min(FINAL_DAY, Math.c
 
 // ---------- 自キャラ・ボス ----------
 // 紋章・聖紋章はステータスに倍率をかける（最大9999）。失うと元の数値にもどる
-function statMul(s) { return Math.pow(EMBLEM.normal, count('boost_' + s)) * Math.pow(EMBLEM.hard, count('h_holy_' + s)); }
-function eff(s) { return Math.min(MAXST, Math.round(S.st[s] * statMul(s))); }
+function statMul(s) { return Math.pow(EMBLEM.normal, count('boost_' + s)) * Math.pow(EMBLEM.hard, count('h_holy_' + s)) * Math.pow(1.5, count('sr_holy_' + s) + count('lr_robe_' + s)); }
+function eff(s) { const v = Math.round(S.st[s] * statMul(s)); return has('lr_robe_' + s) ? v : Math.min(MAXST, v); } // 法衣は9999を突破
 function plTop() { return SUBJ.reduce((a, s) => eff(s) > eff(a) ? s : a, '国語'); }
 function plTier() {
   const v = SUBJ.map(eff), m = Math.max(...v), sum = v.reduce((a, b) => a + b, 0), t = ASSETS.player.tiers;
@@ -227,6 +227,32 @@ const SKILLS_HARD = [
   { id: 'h_fang', name: '🐾 砕牙の爪', desc: 'カウントダウン中のダメージ2.5倍。それ以外は0.8倍' },
   { id: 'h_haisui', name: '💀 背水の書', desc: 'HPが50%以下のとき与えるダメージ2.5倍。ただし51%以上のときは0.9倍' },
 ].map(k => ({ r: 2, ...k }));
+// 激レア★★★（出現条件は今後）
+const SKILLS_SR = [
+  ...EL.concat('英語').map(s => ({ id: 'sr_holy_' + s, name: `${SKICON[s]} ${s}の神聖紋章`, desc: `${s}のステータス1.5倍（重ねがけOK・最大9999）。ただし${s}で間違えると最大HPの50%の反動ダメージ`, stack: true })),
+  { id: 'sr_chimera', name: '🦷 キメラのアギト', desc: '与えたダメージの50%を吸収。ただし保健の回復量が1/4になる' },
+  { id: 'sr_glasses', name: '👓 神のメガネ', desc: '30%の確率で問題が1択になる。ただし与えるダメージ0.7倍' },
+  { id: 'sr_aegis', name: '🛡️ アイギスの盾', desc: '受けるダメージ65%カット。ただし与えるダメージ0.7倍' },
+  { id: 'sr_blackfire', name: '🔥 黒炎', desc: '連続正解ごとにダメージ+50%（最大+300%）。ただし間違えると最大HPの50%の反動ダメージ' },
+  { id: 'sr_blood', name: '🪶 不死鳥の血', desc: 'たおれてもHP50で踏みとどまる（ボス戦1回につき1回・次のボス戦でまた使える）。ただし使うと全ステータスが×0.8になる' },
+  { id: 'sr_helm', name: '🎓 賢者の兜', desc: 'レッスン正解の伸び2倍、苦手こくふくの伸び1.5倍。ただしレッスンで間違えるとその教科のステータスが×0.8になる' },
+  { id: 'sr_idaten', name: '👟 韋駄天のぞうり', desc: '2秒以内に正解するとダメージ3倍。ただしボス戦の全問題に6秒の制限時間' },
+  { id: 'sr_elixir', name: '🌿 秘薬', desc: '保健の回復量4倍。ただし保健で間違えると最大HPの50%の反動ダメージ' },
+  { id: 'sr_ichigeki', name: '💥 一撃必殺の刻印', desc: '20%でダメージ5倍。ただし20%でダメージ0.1倍' },
+  { id: 'sr_beast', name: '🐾 獣の刻印', desc: 'カウントダウン中のダメージ5倍。それ以外は0.7倍' },
+  { id: 'sr_haisui', name: '💀 背水の書', desc: 'HPが80%以下のとき与えるダメージ3倍。ただし81%以上のときは0.75倍' },
+].map(k => ({ r: 3, ...k }));
+// レジェンド☆（出現条件は今後）
+const SKILLS_LR = [
+  ...EL.concat('英語').map(s => ({ id: 'lr_robe_' + s, name: `${SKICON[s]} ${s}の法衣`, desc: `${s}のステータス1.5倍（重ねがけOK）。ステータス9999の上限を突破する。ただし${s}で間違えると最大HPの75%の反動ダメージ`, stack: true })),
+  { id: 'lr_inferno', name: '🔥 インフェルノ', desc: '連続正解ごとにダメージ+50%（上限なし）。ただし間違えると最大HPの75%の反動ダメージ' },
+  { id: 'lr_phoenix', name: '🪶 不死鳥のはく製', desc: 'たおれてもHP100で踏みとどまる（ボス戦1回につき1回・次のボス戦でまた使える）。ただし使うと全ステータスが×0.8になる' },
+  { id: 'lr_hermes', name: '👟 ヘルメスのくつ', desc: '1.5秒以内に正解するとダメージ3倍。ただしボス戦の全問題に4秒の制限時間' },
+  { id: 'lr_elixir', name: '🌿 古の秘薬', desc: '保健の回復でHP全回復。ただし保健で間違えると最大HPの90%の反動ダメージ' },
+  { id: 'lr_haja', name: '💥 覇者の刻印', desc: '50%でダメージ10倍。ただし50%でダメージ0.1倍' },
+  { id: 'lr_beastking', name: '🐾 獣王の刻印', desc: 'カウントダウン中のダメージ10倍。それ以外は0.6倍' },
+  { id: 'lr_vampire', name: '💀 ヴァンパイアの刻印', desc: 'HPが80%以下のとき与えるダメージ5倍。ただし81%以上のときは0.6倍' },
+].map(k => ({ r: 4, ...k }));
 // レアリティ：1ノーマル★ 2レア★★ 3激レア★★★ 4レジェンド☆
 const RAR = { 1: '　　★', 2: '　★★', 3: '★★★', 4: '　　☆' };
 const rStar = k => RAR[k.r || 1];
@@ -326,6 +352,7 @@ function ask(q, opt = {}) {
     };
     setChoices('c2', order.map(o => ({ html: `<button class="cbtn pop">${esc(o.t)}</button>`, on: el => { if (!o.ok) el.classList.add('ng'); finish(o.ok); } })));
     if (opt.auto2) { const btns = [...$('#choices').children]; shuffle(btns.map((b, i) => i).filter(i => !order[i].ok)).slice(0, Math.max(0, order.length - 2)).forEach(i => btns[i].classList.add('hide')); }
+    if (opt.auto1) { const btns = [...$('#choices').children]; btns.forEach((b, i) => { if (!order[i].ok) b.classList.add('hide'); }); }
     const lim = opt.limit || (opt.quick ? 5 : 0);
     if (lim) th = setInterval(() => {
       const r = Math.max(0, 1 - (Date.now() - t0) / (lim * 1000)); const el = $('#tm'); if (el) el.style.width = r * 100 + '%';
@@ -538,8 +565,9 @@ async function lesson(s) {
   const r = await ask(q, { head: `${ICON[s]} ${s}レッスン` });
   S.total++;
   let gain;
-  if (r.ok) { S.correct++; gain = (500 + rnd(301) + (has('scholar') ? 200 : 0)) * (has('h_ougi') ? 1.8 : 1); }
+  if (r.ok) { S.correct++; gain = (500 + rnd(301) + (has('scholar') ? 200 : 0)) * (has('h_ougi') ? 1.8 : 1) * (has('sr_helm') ? 2 : 1); }
   else { gain = has('h_ougi') ? 0 : has('master') ? 400 + rnd(151) : 150 + rnd(101); if (!S.wrong.includes(q)) S.wrong.push(q); }
+  if (!r.ok && has('sr_helm')) { S.st[s] = Math.max(1, Math.floor(S.st[s] * 0.8)); gain = 0; await say(`🎓 賢者の兜の反動… ${s}のステータスが×0.8！`, 1100); }
   const before = S.st[s]; S.st[s] = cap(S.st[s] + gain); gain = S.st[s] - before;
   let extra = '';
   if (s === '保健') { const hp = r.ok ? HP_UP[0] : HP_UP[1]; S.maxHp += hp; S.hp += hp; extra = `　HP最大値 +${hp}`; }
@@ -713,7 +741,7 @@ async function doTurn(s) {
   B.sealed = false;
   const r = await ask(q, {
     head: `${ICON[s]} ${s}で${s === '保健' ? '回復' : 'こうげき'}！${wasWrong ? '　<span style="color:#fde047">★前に間違えた問題</span>' : ''}`,
-    limit: it.type === 'haste' || has('h_godboots') ? 8 : 0, quick: has('quick'), auto2: has('h_sage'),
+    limit: has('lr_hermes') ? 4 : has('sr_idaten') ? 6 : it.type === 'haste' || has('h_godboots') ? 8 : 0, quick: has('quick'), auto2: has('h_sage'), auto1: has('sr_glasses') && Math.random() < 0.3,
   });
   S.total++;
   if (!r.ok) await say(explainHTML(q, r.timeout ? '⏱ 時間切れ！' : '❌ ざんねん…'), 0);
@@ -723,11 +751,11 @@ async function doTurn(s) {
     S.correct++; B.combo++;
     if (wasWrong) {
       S.wrong = S.wrong.filter(x => x !== q); S.overcome++;
-      const b0 = S.st[s]; S.st[s] = cap(S.st[s] + OVERCOME * (has('h_ougi') ? 1.2 : 1)); renderSide();
+      const b0 = S.st[s]; S.st[s] = cap(S.st[s] + OVERCOME * (has('h_ougi') ? 1.2 : 1) * (has('sr_helm') ? 1.5 : 1)); renderSide();
       await say(`★苦手こくふく！ <span style="color:${COLOR[s]}">${s}</span>の力が +${S.st[s] - b0}！`, 1000);
     }
     if (s === '保健') {
-      const heal = Math.round((150 + S.st.保健 * 0.25) * (has('herb') ? 1.5 : 1) * (has('h_elixir') ? 2.5 : 1) * (has('h_vamp') ? 0.5 : 1));
+      const heal = has('lr_elixir') ? S.maxHp : Math.round((150 + S.st.保健 * 0.25) * (has('herb') ? 1.5 : 1) * (has('h_elixir') ? 2.5 : 1) * (has('sr_elixir') ? 4 : 1) * (has('h_vamp') ? 0.5 : 1) * (has('sr_chimera') ? 0.25 : 1));
       const real = Math.min(heal, S.maxHp - S.hp); S.hp += real; B.pGuard = true;
       fxHeal('#face', real); updateUI();
       await say(`💗 HPが${fmt(real)}回復！ ガードのかまえ！`);
@@ -744,8 +772,21 @@ async function doTurn(s) {
       if (has('h_godboots') && r.sec <= 3) d *= 2.5;
       if (has('h_fang')) d *= B.cd > 0 ? 2.5 : 0.8;
       if (has('h_haisui')) d *= S.hp <= S.maxHp * 0.5 ? 2.5 : 0.9;
+      // 激レア・レジェンド
+      if (has('sr_blackfire')) d *= 1 + Math.min(3, 0.5 * (B.combo - 1));
+      if (has('lr_inferno')) d *= 1 + 0.5 * (B.combo - 1);
+      if (has('sr_glasses')) d *= 0.7;
+      if (has('sr_aegis')) d *= 0.7;
+      if (has('sr_idaten') && r.sec <= 2) d *= 3;
+      if (has('lr_hermes') && r.sec <= 1.5) d *= 3;
+      if (has('sr_beast')) d *= B.cd > 0 ? 5 : 0.7;
+      if (has('lr_beastking')) d *= B.cd > 0 ? 10 : 0.6;
+      if (has('sr_haisui')) d *= S.hp <= S.maxHp * 0.8 ? 3 : 0.75;
+      if (has('lr_vampire')) d *= S.hp <= S.maxHp * 0.8 ? 5 : 0.6;
       let rollTxt = '';
       if (has('h_bighorn')) { const x = Math.random(); if (x < 0.4) { d *= 2; rollTxt = '大会心！ '; } else if (x < 0.6) { d *= 0.3; rollTxt = '逆会心… '; } }
+      if (has('sr_ichigeki')) { const x = Math.random(); if (x < 0.2) { d *= 5; rollTxt += '一撃必殺！ '; } else if (x < 0.4) { d *= 0.1; rollTxt += '刻印が沈黙… '; } }
+      if (has('lr_haja')) { if (Math.random() < 0.5) { d *= 10; rollTxt += '覇者の一撃！！ '; } else { d *= 0.1; rollTxt += '覇気が空回り… '; } }
       const crit = has('crit') && Math.random() < 0.2; if (crit) d *= 2;
       if (it.type === 'guard') d *= 0.15;
       if (B.sanct > 0) d /= 3;                 // ワスレーヌ第2形態：サンクチュアリ（全教科1/3）
@@ -755,7 +796,8 @@ async function doTurn(s) {
       if (B.cd > 0) B.brk += d;
       fxHit(s, d, m); await wait(350); updateUI();
       let t = `${rollTxt}${crit ? 'かいしんの一撃！ ' : ''}${it.type === 'guard' ? 'ガードされた… ' : m === 2 ? 'こうかはばつぐんだ！ ' : m === 0.5 ? 'いまひとつ… ' : ''}${fmt(d)}のダメージ！`;
-      if (has('drain') || has('h_vamp')) { const h = Math.min(Math.round(d * (has('h_vamp') ? 0.3 : 0.1)), S.maxHp - S.hp); if (h > 0) { S.hp += h; t += `（HP+${fmt(h)}）`; } }
+      const dr = Math.max(has('drain') ? 0.1 : 0, has('h_vamp') ? 0.3 : 0, has('sr_chimera') ? 0.5 : 0);
+      if (dr) { const h = Math.min(Math.round(d * dr), S.maxHp - S.hp); if (h > 0) { S.hp += h; t += `（HP+${fmt(h)}）`; } }
       await say(t); updateUI();
       if (B.cd > 0 && !B.broken && B.brk >= B.brkNeed) { B.broken = true; anim('#stage', 'shakeBig'); updateUI(); await say('💥 ブレイク！ 大技を止めた！'); }
       if (B.hp > 0 && B.hp <= B.max / 2 && !B.pinched) {
@@ -786,8 +828,14 @@ async function doTurn(s) {
     const hc = count('h_holy_' + s); if (hc) { recoil += 0.2 * hc; why.push(`${s}の聖紋章`); }
     if (has('h_inferno')) { recoil += 0.25; why.push('連続正解の業火'); }
     if (has('h_elixir') && s === '保健') { recoil += 0.2; why.push('霊薬ポーチ'); }
+    const sc = count('sr_holy_' + s); if (sc) { recoil += 0.5 * sc; why.push(`${s}の神聖紋章`); }
+    const lc = count('lr_robe_' + s); if (lc) { recoil += 0.75 * lc; why.push(`${s}の法衣`); }
+    if (has('sr_blackfire')) { recoil += 0.5; why.push('黒炎'); }
+    if (has('lr_inferno')) { recoil += 0.75; why.push('インフェルノ'); }
+    if (has('sr_elixir') && s === '保健') { recoil += 0.5; why.push('秘薬'); }
+    if (has('lr_elixir') && s === '保健') { recoil += 0.9; why.push('古の秘薬'); }
     if (recoil) {
-      const d = Math.round(S.maxHp * Math.min(0.6, recoil)); S.hp = Math.max(0, S.hp - d);
+      const d = Math.round(S.maxHp * Math.min(recoil > 0.6 ? 1 : 0.6, recoil)); S.hp = Math.max(0, S.hp - d);
       fxHurt(d); await wait(350); updateUI();
       await say(`🔥 ${why.join('・')}の反動！ ${fmt(d)}のダメージ！`, 1100);
       if (S.hp <= 0 && !(await survive())) return;
@@ -811,12 +859,16 @@ function armorTops() { const A = ['国語', '算数', '理科', '社会', '英�
 function armorMul(s) { const t = armorTops(); return t.includes(s) ? (t.length > 1 ? 1 / 5 : 1 / 3) : 1; }
 async function survive() {
   if (has('revive') && !S.reviveUsed) { S.reviveUsed = true; S.hp = Math.ceil(S.maxHp / 2); fxHeal('#face', S.hp); updateUI(); await say('🪶 不死鳥の羽でふっかつした！'); return true; }
-  if (has('h_tail') && B && !B.tailUsed) { B.tailUsed = true; SUBJ.forEach(x => S.st[x] = Math.max(1, Math.floor(S.st[x] * 0.8))); S.hp = 1; fxHeal('#face', 1); updateUI(); await say('🪶 不死鳥の尾羽が燃え上がった！ HP1で踏みとどまった！（全ステータス×0.8）', 1600); return true; }
+  for (const [id, hp, nm] of [['lr_phoenix', 100, '不死鳥のはく製'], ['sr_blood', 50, '不死鳥の血'], ['h_tail', 1, '不死鳥の尾羽']]) {
+    if (!has(id) || !B || (B.used = B.used || {})[id]) continue;
+    B.used[id] = true; SUBJ.forEach(x => S.st[x] = Math.max(1, Math.floor(S.st[x] * 0.8))); S.hp = Math.min(hp, S.maxHp); fxHeal('#face', S.hp); updateUI();
+    await say(`🪶 ${nm}が燃え上がった！ HP${S.hp}で踏みとどまった！（全ステータス×0.8）`, 1600); return true;
+  }
   if (B.idx === 4) { await say(`${ASSETS.player.name}はひざをついた…`, 1200); await say(`${bName()}「${ASSETS.lines.kurogane.lose}」`, 0); await ending('kuroLose'); result(true); return false; }
   await say(`${ASSETS.player.name}はたおれてしまった…`, 1500); result(false); return false;
 }
 async function hitP(raw, label, noWeak, pure) {
-  let d = raw * (S.grade === 0 && !pure ? HARD.hurt : 1); if (B.pGuard) d *= 0.5; if (has('shield')) d *= 0.7; if (has('h_bigshield')) d *= 0.5; if (B.pWeak && !noWeak && !pure) d *= 1.3;
+  let d = raw * (S.grade === 0 && !pure ? HARD.hurt : 1); if (B.pGuard) d *= 0.5; if (has('shield')) d *= 0.7; if (has('h_bigshield')) d *= 0.5; if (has('sr_aegis')) d *= 0.35; if (B.pWeak && !noWeak && !pure) d *= 1.3;
   d = Math.round(d); S.hp = Math.max(0, S.hp - d);
   fxHurt(d); await wait(350); updateUI();
   await say(`${label}${B.pGuard ? '（ガード）' : ''} ${fmt(d)}のダメージ！`, 1000);
