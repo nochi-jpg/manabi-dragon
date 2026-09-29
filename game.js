@@ -28,19 +28,21 @@ const STAGES = [
   { hp: 6000,  atk: 135, pat: ['attack', 'attack', 'guard', 'charge'] },
   { hp: 18000, atk: 225, pat: ['attack', 'multi', 'guard', 'charge', 'attack', 'roar'] },
   { hp: 40000, atk: 360, pat: ['attack', 'countdown', 'multi', 'haste', 'charge', 'guard', 'heal'], cd: 3, brk: 0.2 },
-  { hp: 28000, hp2: 34000, atk: 470, pat: ['shift', 'multi', 'countdown', 'haste', 'charge', 'attack', 'guard'],
-    pat2: ['roar', 'countdown', 'multi', 'haste', 'shift', 'charge', 'heal'], cd: 3, brk: 0.15 },
+  { hp: 28000, hp2: 27000, atk: 470, pat: ['attack', 'multi', 'countdown', 'haste', 'charge', 'attack', 'guard'],
+    pat2: ['roar', 'countdown', 'multi', 'haste', 'attack', 'charge', 'heal'], cd: 3, brk: 0.15 },
 ];
 // ハードモード専用の行動パターン（STAGESに上書き）。absorb＝吸収攻撃、seal＝保健封印、issen＝今のHPの9割を削る奥義
 const HARD_PAT = [
   { pat: ['attack', 'multi', 'charge', 'guard', 'seal', 'haste'] },
   { pat: ['attack', 'countdown', 'absorb', 'charge', 'haste', 'seal', 'guard', 'roar'], cd: 3, brk: 0.2 },
   { pat: ['multi', 'countdown', 'haste', 'absorb', 'charge', 'seal', 'roar', 'guard', 'heal'], cd: 3, brk: 0.2 },
-  { pat: ['shift', 'multi', 'countdown', 'absorb', 'haste', 'charge', 'seal', 'guard'],
-    pat2: ['roar', 'countdown', 'multi', 'seal', 'haste', 'shift', 'absorb', 'charge', 'heal'] },
+  { pat: ['attack', 'multi', 'countdown', 'absorb', 'haste', 'charge', 'seal', 'guard'],
+    pat2: ['roar', 'countdown', 'multi', 'seal', 'haste', 'attack', 'absorb', 'charge', 'heal'] },
 ];
 // 裏ボス：剣聖クロガネ（ハードモードのみ）
-const KUROGANE = { hp: 55000, atk: 470, pat: ['issen', 'attack', 'charge', 'countdown', 'shift', 'multi', 'haste', 'seal', 'issen', 'guard'], cd: 2, brk: 0.16 };
+const KUROGANE = { hp: 55000, atk: 470, pat: ['issen', 'attack', 'charge', 'countdown', 'attack', 'multi', 'haste', 'seal', 'issen', 'guard'], cd: 2, brk: 0.16 };
+// ワスレーヌ・クロガネの属性は毎ターン回る → 弱点が 算数 ▶ 国語 ▶ 社会 ▶ 理科 ▶ 算数 の順に変わる
+const ROTATE_EL = ['国語', '社会', '理科', '算数'];
 // 背景画像がないときのグラデーション（だんだん荒廃→火山）
 const GRAD = [
   'linear-gradient(#6fb6ff,#cfe9ff 60%,#6fbf73 61%,#3f8f4a)',
@@ -567,7 +569,7 @@ function battleStart(special) {
   const kuro = special === 'kurogane';
   const idx = kuro ? 4 : weekOf(S.day), last = idx === 3;
   const st = kuro ? KUROGANE : S.grade === 0 ? { ...STAGES[idx], ...HARD_PAT[idx], hp: STAGES[idx].hp * HARD.hp, hp2: STAGES[idx].hp2 && STAGES[idx].hp2 * HARD.hp } : STAGES[idx];
-  if (last || kuro) S.bossEl = pick(EL);
+  if (last || kuro) S.bossEl = ROTATE_EL[0];
   B = {
     idx, st, key: kuro ? 'kurogane' : last ? 'last' : S.bossEl, sealed: false, tailUsed: false,
     rematch: idx < 3 && S.bossEls.slice(0, idx).includes(S.bossEl), hp: st.hp, max: st.hp, atk: st.atk, atkMul: 1, turn: 0, pi: 0,
@@ -615,7 +617,7 @@ function nextIntent() {
   return { type, ...INTENT[type]() };
 }
 function updateUI() {
-  $('#bName').innerHTML = `${bName()} <span class="chip" style="background:${BTNC[S.bossEl]}">${S.bossEl}</span>${B.atkMul > 1 ? ` <span class="chip" style="background:#7f1d1d">攻×${B.atkMul.toFixed(1)}</span>` : ''}`;
+  $('#bName').innerHTML = `${bName()} <span class="chip" style="background:${BTNC[S.bossEl]}">${S.bossEl}</span>${B.atkMul > 1 ? ` <span class="chip" style="background:#7f1d1d">攻×${B.atkMul.toFixed(1)}</span>` : ''}${B.sanct > 0 ? ` <span class="chip" style="background:#7c3aed">✨聖域 残り${B.sanct}</span>` : ''}${B.armor ? ' <span class="chip" style="background:#0369a1">🛡よろい</span>' : ''}`;
   gauge('#bGauge', B.hp / B.max); $('#bNum').textContent = `${fmt(B.hp)} / ${fmt(B.max)}`;
   renderSide(); renderInfo();
   const it = B.intent, ie = $('#intent');
@@ -630,6 +632,8 @@ function updateUI() {
 function tagFor(s) {
   if (s === '保健') return '回復+ガード';
   const m = mult(s, S.bossEl);
+  if (B.armor && armorMul(s) < 1) return `よろい×${armorTops().length > 1 ? '1/5' : '1/3'}`;
+  if (B.sanct > 0) return '聖域×1/3';
   if (B.intent.type === 'charge' && m === 2) return 'ひるませる！';
   return m === 2 ? 'ばつぐん×2' : m === 0.5 ? 'いまひとつ×½' : '×1';
 }
@@ -734,6 +738,8 @@ async function doTurn(s) {
       if (has('h_bighorn')) { const x = Math.random(); if (x < 0.4) { d *= 2; rollTxt = '大会心！ '; } else if (x < 0.6) { d *= 0.3; rollTxt = '逆会心… '; } }
       const crit = has('crit') && Math.random() < 0.2; if (crit) d *= 2;
       if (it.type === 'guard') d *= 0.15;
+      if (B.sanct > 0) d /= 3;                 // ワスレーヌ第2形態：サンクチュアリ（全教科1/3）
+      if (B.armor) d *= armorMul(s);           // クロガネ：せいなるよろい（一番高い教科1/3、同値が複数なら1/5）
       if (it.type === 'stun') d *= 2;
       d = Math.max(1, Math.round(d)); B.hp = Math.max(0, B.hp - d); S.dmg += d;
       if (B.cd > 0) B.brk += d;
@@ -745,6 +751,18 @@ async function doTurn(s) {
       if (B.hp > 0 && B.hp <= B.max / 2 && !B.pinched) {
         B.pinched = true; const L = ASSETS.lines[B.key], line = B.phase2 && L.pinch2 ? L.pinch2 : pickLine(L.pinch);
         if (line) { anim('#chara', 'hurt'); await say(`${bName()}「${line}」`, 0); }
+      }
+      if (B.idx === 3 && B.phase2 && !B.sanctUsed && B.hp > 0 && B.hp <= B.max / 2) {
+        B.sanctUsed = true; B.sanct = 3; B.sanctNew = true; anim('#stage', 'shakeBig');
+        fxAdd('<div class="flash" style="background:#c4b5fd"></div>', 700); updateUI();
+        await say(`${bName()}「${ASSETS.lines.last.sanct}」`, 0);
+        await say('✨ サンクチュアリ発動！ 3ターンの間、すべての攻撃のダメージが1/3になる！', 1600);
+      }
+      if (B.idx === 4 && !B.armor && B.hp > 0 && B.hp <= B.max / 2) {
+        B.armor = true; anim('#stage', 'shakeBig'); fxAdd('<div class="flash" style="background:#bae6fd"></div>', 700); updateUI();
+        const tops = armorTops();
+        await say(`${bName()}「${ASSETS.lines.kurogane.armor}」`, 0);
+        await say(`🛡 せいなるよろい！ ${tops.join('・')}の攻撃ダメージが${tops.length > 1 ? '1/5' : '1/3'}になる！`, 1800);
       }
       if (it.type === 'charge' && m === 2) { B.interrupt = true; await say('ばつぐんの一撃でボスがひるんだ！ ためが消えた！'); }
     }
@@ -771,8 +789,16 @@ async function doTurn(s) {
   await bossAct(it);
   if (S.hp <= 0 && !(await survive())) return;
   B.pGuard = false; B.pWeak = false; B.turn++;
+  if (B.sanct > 0) { if (B.sanctNew) B.sanctNew = false; else if (--B.sanct === 0) { updateUI(); await say('サンクチュアリの光が消えた！', 1100); } }
+  if (B.idx >= 3) {
+    S.bossEl = ROTATE_EL[(ROTATE_EL.indexOf(S.bossEl) + 1) % 4]; updateUI(); anim('#chara', 'hurt');
+    await say(`🔄 ${bName()}の弱点が「<span style="color:${COLOR[strongAgainst(S.bossEl)]}">${strongAgainst(S.bossEl)}</span>」に変わった！`, 900);
+  }
   B.intent = nextIntent(); updateUI(); showCmd();
 }
+// せいなるよろい：攻撃教科（国算理社英）の中で一番高いステータス
+function armorTops() { const A = ['国語', '算数', '理科', '社会', '英語'], mx = Math.max(...A.map(eff)); return A.filter(x => eff(x) === mx); }
+function armorMul(s) { const t = armorTops(); return t.includes(s) ? (t.length > 1 ? 1 / 5 : 1 / 3) : 1; }
 async function survive() {
   if (has('revive') && !S.reviveUsed) { S.reviveUsed = true; S.hp = Math.ceil(S.maxHp / 2); fxHeal('#face', S.hp); updateUI(); await say('🪶 不死鳥の羽でふっかつした！'); return true; }
   if (has('h_tail')) { S.skills.splice(S.skills.findIndex(k => k.id === 'h_tail'), 1); S.hp = 1; fxHeal('#face', 1); updateUI(); await say('🪶 不死鳥の尾羽が燃えつきた！ HP1で踏みとどまった！', 1400); return true; }
