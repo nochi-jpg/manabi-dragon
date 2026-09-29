@@ -22,7 +22,8 @@ const OVERCOME = 450;      // 苦手こくふくで追加される能力（最�
 const DMG_MUL = 1.85;      // 与ダメージ倍率（試合時間の調整用）
 const FINAL_DAY = 22;
 // ランク基準（ハードはスコアを1.5で割って判定）。Sはクリア＋正答率90%以上も必要、ゲームオーバーは最高B
-const RANK = { S: 320000, A: 280000, B: 200000, C: 120000, sAcc: 90 };
+const RANK = { S: 320000, A: 280000, B: 200000, C: 120000, sAcc: 90, SS: 650000, SSS: 1400000 };
+// SS・SSS は倍率こみの「表示スコア」で判定（Sの条件もみたしたときだけ）。目安：SS＝ハードで完全勝利、SSS＝エクストリームで真・完全勝利
 const TIME_BONUS_SEC = 1800; // クリアタイムボーナス：30分−かかった秒数（最大1800点）
 
 // ボス設定：hp・atk・行動パターン（cd＝カウントダウンのターン数、brk＝ブレイクに必要なダメージ割合）
@@ -1138,12 +1139,13 @@ function result(clear) {
   let rank = base >= RANK.S ? 'S' : base >= RANK.A ? 'A' : base >= RANK.B ? 'B' : base >= RANK.C ? 'C' : 'D';
   if (rank === 'S' && !(clear && acc >= RANK.sAcc)) rank = 'A';
   if (!clear && (rank === 'S' || rank === 'A')) rank = 'B';
+  if (rank === 'S') rank = score >= RANK.SSS ? 'SSS' : score >= RANK.SS ? 'SS' : 'S';
   const pass = !clear ? '' : S.grade > 0 ? `<div class="rpass">🔓 パスワード <b>${PASSWORD.hard}</b><br><small>「くろい」と覚えてね！タイトル画面で入力してみよう！</small></div>`
     : !S.extreme ? `<div class="rpass">🔓 パスワード <b>${PASSWORD.extreme}</b><br><small>「むずい」と覚えてね！タイトル画面で入力してみよう！</small></div>` : '';
-  const sNote = rank === 'S' ? '' : `<p class="rnote">Sランクの条件：クリア・正答率${RANK.sAcc}%以上・${fmt(RANK.S * (S.grade === 0 ? DIFF().score : 1))}点以上</p>`;
+  const sNote = rank.startsWith('S') ? '' : `<p class="rnote">Sランクの条件：クリア・正答率${RANK.sAcc}%以上・${fmt(RANK.S * (S.grade === 0 ? DIFF().score : 1))}点以上</p>`;
   const gname = S.grade ? S.grade + '年' : S.extreme ? 'エクストリーム' : 'ハードモード';
   const share = `【まなびドラゴン】${gname} ${S.trueWin ? '真・完全勝利！' : S.kuroWin ? '完全勝利！' : clear ? 'クリア！' : `${S.day}日目でたおれた`} スコア${fmt(score)}（ランク${rank}）正答率${acc}%${clear ? ` タイム${clock}` : ''}`;
-  const RCOL = { S: '#ffd54a', A: '#f472b6', B: '#38bdf8', C: '#4ade80', D: '#cbd5e1' };
+  const RCOL = { SSS: '#fff7ae', SS: '#7dd3fc', S: '#ffd54a', A: '#f472b6', B: '#38bdf8', C: '#4ade80', D: '#cbd5e1' };
   const W = S.wrong, PER = 5, pages = Math.max(1, Math.ceil(W.length / PER));
   $('#panelIn').classList.add('resmode');
   $('#panelIn').innerHTML = `
@@ -1154,7 +1156,7 @@ function result(clear) {
         <p class="rsub">${gname}　正答率 ${acc}%${clear ? `　⏱ ${clock}` : ''}</p>
         <div class="rart">${playerArt('width:130px;height:130px;font-size:96px')}</div>
         <div id="rScore" class="rscore">0</div>
-        <div id="rRank" class="rrank" style="color:${RCOL[rank]}">${rank}</div>
+        <div id="rRank" class="rrank r-${rank}" style="color:${RCOL[rank]}">${rank}</div>
         <div class="rfade">${pass}${sNote}
           <div class="rbtns"><button class="btn gold" id="again">もういちど</button><button class="btn gray" id="copy">結果をコピー</button></div></div>
       </div>
