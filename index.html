@@ -236,6 +236,21 @@ table{width:100%;font-size:20px;border-collapse:collapse}td{padding:3px}td:last-
 .lunge{animation:lunge .35s}
 @keyframes lunge{50%{scale:1.08;translate:0 20px}}
 .guardFx{position:absolute;inset:6%;border:6px solid #7dd3fc;border-radius:50%;box-shadow:0 0 30px #7dd3fc inset,0 0 30px #7dd3fc;pointer-events:none;z-index:3;animation:pp .3s}
+
+/* ---- アイテムのレアリティ ---- */
+.rst{letter-spacing:0;white-space:pre}
+#items .rst{display:inline-block;width:3.3em;text-align:right;text-decoration:none}
+.rst.r1{color:#e5e7eb}.rst.r2{color:#60a5fa}.rst.r3{color:#fbbf24}
+.rst.r4{animation:rbText 1.5s linear infinite}
+@keyframes rbText{0%{color:#f43f5e}20%{color:#f59e0b}40%{color:#22c55e}60%{color:#3b82f6}80%{color:#a855f7}100%{color:#f43f5e}}
+.rst{font-family:sans-serif}
+.skcard .rst,.modalBox .rst{display:block;text-align:center;font-size:22px;line-height:1.1;margin-bottom:2px;text-shadow:0 0 1px #111}
+.skcard .rst.r1,.modalBox .rst.r1{color:#9ca3af}
+.skcard.rar1,.modalBox.rar1{border:5px solid #fff;box-shadow:0 0 0 3px #111,0 9px 0 3px #111}
+.skcard.rar2,.modalBox.rar2{border:5px solid #3b82f6;box-shadow:0 0 0 3px #111,0 0 18px #3b82f6,0 9px 0 3px #1e3a8a}
+.skcard.rar3,.modalBox.rar3{border:5px solid #f59e0b;box-shadow:0 0 0 3px #111,0 0 26px #fbbf24,0 9px 0 3px #92400e}
+.skcard.rar4,.modalBox.rar4{border:6px solid transparent;background:linear-gradient(#fff,#fff) padding-box,linear-gradient(90deg,#f43f5e,#f59e0b,#eab308,#22c55e,#3b82f6,#a855f7,#f43f5e) 0 0/200% 100% border-box;box-shadow:0 0 0 3px #111,0 0 30px #c084fc;animation:pp .3s,rainbow 2s linear infinite}
+@keyframes rainbow{to{background-position:0 0,200% 0}}
 </style>
 </head>
 <body>

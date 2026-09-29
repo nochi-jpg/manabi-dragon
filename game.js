@@ -199,7 +199,7 @@ const count = id => S.skills.filter(k => k.id === id).length;
 // ---------- スキル ----------
 const SKICON = { 国語: '📚', 算数: '🧮', 理科: '🧪', 社会: '🗾', 英語: '🔤' };
 const SKILLS = [
-  ...EL.concat('英語').map(s => ({ id: 'boost_' + s, name: `${SKICON[s]} ${s}の紋章`, desc: `${s}のステータス${EMBLEM.normal}倍（重ねがけOK・最大9999）`, stack: true })),
+  ...EL.concat('英語').map(s => ({ id: 'boost_' + s, name: `${SKICON[s]} ${s}の紋章`, desc: `${s}のステータス${EMBLEM.normal}倍（重ねがけOK・最大9999）`, stack: true, r: 1 })),
   { id: 'drain', name: '🦷 ドレインの牙', desc: '与えたダメージの10%だけHP回復' },
   { id: 'half', name: '👓 ひらめきメガネ', desc: 'ボス戦ごとに3回、4択を2択にできる' },
   { id: 'shield', name: '🛡️ ウロコの盾', desc: '受けるダメージ30%カット（大技にも有効）' },
@@ -211,29 +211,36 @@ const SKILLS = [
   { id: 'herb', name: '🌿 薬草ポーチ', desc: '保健の回復量1.5倍' },
   { id: 'crit', name: '💥 かいしんの角', desc: '20%の確率でダメージ2倍' },
   { id: 'breaker', name: '🐾 くだけの爪', desc: 'カウントダウン中のダメージ1.5倍（ブレイクしやすい）' },
-];
+].map(k => ({ r: 1, ...k }));
 // ハードモード専用アイテム（ハイリスク・ハイリターン）。ハードでは通常アイテムは出ない
 const SKILLS_HARD = [
-  ...EL.concat('英語').map(s => ({ id: 'h_holy_' + s, name: `${SKICON[s]} ${s}の聖紋章`, desc: `${s}のステータス${EMBLEM.hard}倍（重ねがけOK・最大9999）。ただし${s}で間違えると最大HPの20%の反動ダメージ`, stack: true })),
+  ...EL.concat('英語').map(s => ({ id: 'h_holy_' + s, name: `${SKICON[s]} ${s}の聖紋章`, desc: `${s}のステータス${EMBLEM.hard}倍（重ねがけOK・最大9999）。ただし${s}で間違えると最大HPの20%の反動ダメージ`, stack: true, r: 2 })),
   { id: 'h_vamp', name: '🦷 吸血の牙', desc: '与えたダメージの30%を吸収。ただし保健の回復量が半分になる' },
   { id: 'h_sage', name: '👓 賢者のメガネ', desc: 'ボス戦の問題がすべて2択になる。ただし与えるダメージ0.7倍' },
   { id: 'h_bigshield', name: '🛡️ 竜鱗の大盾', desc: '受けるダメージ50%カット。ただし与えるダメージ0.75倍' },
   { id: 'h_inferno', name: '🔥 連続正解の業火', desc: '連続正解ごとにダメージ+40%（最大+200%）。ただし間違えると最大HPの25%の反動ダメージ' },
-  { id: 'h_tail', name: '🪶 不死鳥の尾羽', desc: 'たおれてもHP1で踏みとどまる。ただし1回使うと消える' },
+  { id: 'h_tail', name: '🪶 不死鳥の尾羽', desc: 'たおれてもHP1で踏みとどまる（ボス戦1回につき1回・次のボス戦でまた使える）。ただし使うと全ステータスが×0.8になる' },
   { id: 'h_ougi', name: '🎓 まなびの奥義', desc: 'レッスン正解の伸びが1.8倍。苦手こくふく（間違えた問題に再正解）の伸びも1.2倍。ただしレッスンで間違えると伸びなし' },
-  { id: 'h_godboots', name: '👟 神速のブーツ', desc: '3秒以内に正解するとダメージ2.5倍。ただしボス戦の全問題に8秒の制限時間' },
+  { id: 'h_godboots', name: '👟 俊足のブーツ', desc: '3秒以内に正解するとダメージ2.5倍。ただしボス戦の全問題に8秒の制限時間' },
   { id: 'h_elixir', name: '🌿 霊薬ポーチ', desc: '保健の回復量2.5倍。ただし保健で間違えると最大HPの20%の反動ダメージ' },
   { id: 'h_bighorn', name: '💥 かいしんの大角', desc: '40%で大会心（ダメージ2倍）、20%で逆会心（ダメージ0.3倍）' },
   { id: 'h_fang', name: '🐾 砕牙の爪', desc: 'カウントダウン中のダメージ2.5倍。それ以外は0.8倍' },
   { id: 'h_haisui', name: '💀 背水の書', desc: 'HPが50%以下のとき与えるダメージ2.5倍。ただし51%以上のときは0.9倍' },
-];
+].map(k => ({ r: 2, ...k }));
+// レアリティ：1ノーマル★ 2レア★★ 3激レア★★★ 4レジェンド☆
+const RAR = { 1: '　　★', 2: '　★★', 3: '★★★', 4: '　　☆' };
+const rStar = k => RAR[k.r || 1];
+const iName = k => rStar(k).trim() + k.name;                     // メッセージ用
+const iHtml = k => `<span class="rst r${k.r || 1}">${rStar(k)}</span>${k.name}`; // 一覧用（そろえて表示）
+const rCls = k => ' rar' + (k.r || 1);
+const skTitle = k => `<span class="rst r${k.r || 1}">${rStar(k).trim()}</span><b>${skLabel(k)}</b>`;
 const skillChoices = n => shuffle((S.grade === 0 ? SKILLS_HARD : SKILLS).filter(k => k.stack || !has(k.id))).slice(0, n);
 const skIcon = k => k.name.split(' ')[0], skLabel = k => k.name.split(' ').slice(1).join(' ');
 // ⑤ 入手したアイテムの効果を表示（クリックでとじる）
 function showItem(k, verb = '手に入れた') {
   return new Promise(res => {
     const m = $('#modal');
-    m.innerHTML = `<div class="modalBox pop"><div style="font-size:18px;color:#b45309">🎁 ${verb}！</div><div style="font-size:72px;line-height:1.1">${skIcon(k)}</div><b>${skLabel(k)}</b><p>${k.desc}</p><div style="font-size:14px;color:#888;margin-top:8px">クリックでとじる</div></div>`;
+    m.innerHTML = `<div class="modalBox pop${rCls(k)}"><div style="font-size:18px;color:#b45309">🎁 ${verb}！</div><div style="font-size:72px;line-height:1.1">${skIcon(k)}</div>${skTitle(k)}<p>${k.desc}</p><div style="font-size:14px;color:#888;margin-top:8px">クリックでとじる</div></div>`;
     m.style.display = 'flex';
     m.onclick = e => { e.stopPropagation(); m.style.display = 'none'; m.onclick = null; res(); };
   });
@@ -243,8 +250,8 @@ function discardItem() {
   return new Promise(res => {
     msg(`<div>アイテムがいっぱい！（最大${MAX_ITEMS}個）すてるアイテムをえらんでね</div><div class="sub">左のリストをクリックすると効果を確認できるよ</div>`);
     setChoices('c4', S.skills.map((k, i) => ({
-      html: `<button class="skcard mini pop"><span class="skic">${skIcon(k)}</span><b>${skLabel(k)}</b>${i === S.skills.length - 1 ? '<span class="newtag">NEW</span>' : ''}</button>`,
-      on: async () => { const [x] = S.skills.splice(i, 1); clearChoices(); renderSide(); await say(`「${x.name}」をすてた`, 1000); res(); },
+      html: `<button class="skcard mini pop${rCls(k)}"><span class="skic">${skIcon(k)}</span>${skTitle(k)}${i === S.skills.length - 1 ? '<span class="newtag">NEW</span>' : ''}</button>`,
+      on: async () => { const [x] = S.skills.splice(i, 1); clearChoices(); renderSide(); await say(`「${iName(x)}」をすてた`, 1000); res(); },
     })));
   });
 }
@@ -255,7 +262,7 @@ async function gainItem(k, verb) {
 }
 function skillPopup(k) {
   const m = $('#modal');
-  m.innerHTML = `<div class="modalBox pop"><div style="font-size:64px;line-height:1.1">${k.name.split(' ')[0]}</div><b>${k.name.split(' ').slice(1).join(' ')}</b><p>${k.desc}</p><button class="btn" style="margin-top:12px">とじる</button></div>`;
+  m.innerHTML = `<div class="modalBox pop${rCls(k)}"><div style="font-size:64px;line-height:1.1">${skIcon(k)}</div>${skTitle(k)}<p>${k.desc}</p><button class="btn" style="margin-top:12px">とじる</button></div>`;
   m.style.display = 'flex'; m.onclick = e => { e.stopPropagation(); m.style.display = 'none'; };
 }
 document.addEventListener('click', e => { const c = e.target.closest('[data-k]'); if (c && S) { e.stopPropagation(); skillPopup(S.skills[c.dataset.k]); } }, true);
@@ -268,7 +275,7 @@ function renderSide(phase) {
   gauge('#pGauge', S.hp / S.maxHp);
   $('#hpNum').textContent = `${fmt(S.hp)}/${fmt(S.maxHp)}`;
   $('#stats').innerHTML = SUBJ.map(s => { const up = statMul(s) > 1; return `<div><span style="color:${COLOR[s]}">${s}</span><span style="color:${up ? '#ffd54a' : COLOR[s]}">${up ? '▲' : ''}${eff(s)}</span></div>`; }).join('');
-  $('#items').innerHTML = `<div class="ol">所持アイテム ${S.skills.length}/${MAX_ITEMS}</div>` + (S.skills.length ? S.skills.map((k, i) => `<div class="it ol" data-k="${i}">${k.name}</div>`).join('') : '<div class="it ol" style="text-decoration:none;opacity:.6">なし</div>');
+  $('#items').innerHTML = `<div class="ol">所持アイテム ${S.skills.length}/${MAX_ITEMS}</div>` + (S.skills.length ? S.skills.map((k, i) => `<div class="it ol" data-k="${i}">${iHtml(k)}</div>`).join('') : '<div class="it ol" style="text-decoration:none;opacity:.6">なし</div>');
 }
 function renderInfo() {
   $('#info').style.display = 'block';
@@ -465,7 +472,7 @@ async function wedEvent() {
     dim(true); await wait(400);
     const k = skillChoices(1)[0];
     await say(`暗やみの中で、何かが光っている…`, 1200);
-    await say(`「${k.name}」を拾った！`, 900);
+    await say(`「${iName(k)}」を拾った！`, 900);
     await gainItem(k, '拾った');
     dim(false);
   } else if (x < 0.6) {                            // 師匠からのおくりもの（暗転なし）
@@ -479,7 +486,7 @@ async function wedEvent() {
     await new Promise(res => {
       msg('3つのうち、ひとつをえらんでね');
       setChoices('c3', skillChoices(3).map(k => ({
-        html: `<button class="skcard pop"><span class="skic">${skIcon(k)}</span><b>${skLabel(k)}</b>${k.desc}</button>`,
+        html: `<button class="skcard pop${rCls(k)}"><span class="skic">${skIcon(k)}</span>${skTitle(k)}${k.desc}</button>`,
         on: async () => { clearChoices(); await gainItem(k, 'くじで当たった'); res(); },
       })));
     });
@@ -542,7 +549,7 @@ async function lesson(s) {
   else await say(explainHTML(q, `❌ ざんねん…　${up}　<span class="sub">（この問題はボス戦でも出るよ）</span>`), 0);
   if (plTier() > tierBefore) { anim('#face', 'hurt'); await say(`✨ ${ASSETS.player.name}が進化した！ ✨`, 1500); }
   else if (plTier() > 0 && plTop() !== topBefore) await say(`${ASSETS.player.name}のすがたが「${plTop()}」タイプに変わった！`, 1300);
-  if (Math.random() < SKILL_DROP) { clearChoices(); const k = skillChoices(1)[0]; await say(`🎁 アイテム「${k.name}」をひろった！`, 900); await gainItem(k, 'ひろった'); }
+  if (Math.random() < SKILL_DROP) { clearChoices(); const k = skillChoices(1)[0]; await say(`🎁 アイテム「${iName(k)}」をひろった！`, 900); await gainItem(k, 'ひろった'); }
   clearChoices();
   goDay(S.day + 1);
 }
@@ -554,7 +561,7 @@ function saturday() {
   msg(`<div>${R.name}「${hello}」</div><div class="sub">ひとつえらんでね（無料！）</div>`);
   const ch = skillChoices(3);
   setChoices('c3', ch.map(k => ({
-    html: `<button class="skcard pop"><span class="skic">${skIcon(k)}</span><b>${skLabel(k)}</b>${k.desc}</button>`,
+    html: `<button class="skcard pop${rCls(k)}"><span class="skic">${skIcon(k)}</span>${skTitle(k)}${k.desc}</button>`,
     on: async () => { clearChoices(); await gainItem(k, 'ルリからもらった'); await say(`${ASSETS.merchant.name}「${pick(ASSETS.merchant.lines.thanks)}」`, 0); goDay(S.day + 1); },
   })));
 }
@@ -804,7 +811,7 @@ function armorTops() { const A = ['国語', '算数', '理科', '社会', '英�
 function armorMul(s) { const t = armorTops(); return t.includes(s) ? (t.length > 1 ? 1 / 5 : 1 / 3) : 1; }
 async function survive() {
   if (has('revive') && !S.reviveUsed) { S.reviveUsed = true; S.hp = Math.ceil(S.maxHp / 2); fxHeal('#face', S.hp); updateUI(); await say('🪶 不死鳥の羽でふっかつした！'); return true; }
-  if (has('h_tail')) { S.skills.splice(S.skills.findIndex(k => k.id === 'h_tail'), 1); S.hp = 1; fxHeal('#face', 1); updateUI(); await say('🪶 不死鳥の尾羽が燃えつきた！ HP1で踏みとどまった！', 1400); return true; }
+  if (has('h_tail') && B && !B.tailUsed) { B.tailUsed = true; SUBJ.forEach(x => S.st[x] = Math.max(1, Math.floor(S.st[x] * 0.8))); S.hp = 1; fxHeal('#face', 1); updateUI(); await say('🪶 不死鳥の尾羽が燃え上がった！ HP1で踏みとどまった！（全ステータス×0.8）', 1600); return true; }
   if (B.idx === 4) { await say(`${ASSETS.player.name}はひざをついた…`, 1200); await say(`${bName()}「${ASSETS.lines.kurogane.lose}」`, 0); await ending('kuroLose'); result(true); return false; }
   await say(`${ASSETS.player.name}はたおれてしまった…`, 1500); result(false); return false;
 }
