@@ -19,6 +19,7 @@ const HP_UP = [300, 120];  // 保健レッスンで増える最大HP（正解, �
 const OVERCOME = 450;      // 苦手こくふくで追加される能力（最初に正解した場合との差）
 const DMG_MUL = 1.85;      // 与ダメージ倍率（試合時間の調整用）
 const FINAL_DAY = 22;
+const TIME_BONUS_SEC = 1800; // クリアタイムボーナス：30分−かかった秒数（最大1800点）
 
 // ボス設定：hp・atk・行動パターン（cd＝カウントダウンのターン数、brk＝ブレイクに必要なダメージ割合）
 const STAGES = [
@@ -409,6 +410,7 @@ function tutorial() {
 
 // ---------- 1日の進行 ----------
 async function goDay(d) {
+  if (d === 1 && !S.t0) S.t0 = Date.now();   // 1日目の開始からタイマー（画面には出さない）
   const from = S.day; S.day = d;
   const wk = weekOf(d);
   if (wk < 3) S.bossEl = S.bossEls[wk];
@@ -846,16 +848,20 @@ function result(clear) {
     ['クリアボーナス', clear ? 30000 + S.hp * 10 : 0],
   ];
   if (S.kuroWin) rows.push(['⚔ 剣聖クロガネに勝利', 50000]);
+  // クリア時のみ：クリアタイムとごく小さなボーナス（30分より速いほど1秒につき1点）
+  const sec = clear && S.t0 ? Math.round((Date.now() - S.t0) / 1000) : 0;
+  const clock = `${Math.floor(sec / 60)}分${String(sec % 60).padStart(2, '0')}秒`;
+  if (clear) rows.push([`クリアタイム ${clock}`, Math.max(0, TIME_BONUS_SEC - sec)]);
   if (S.grade === 0) rows.push(['ハードモードボーナス ×1.5', Math.round(rows.reduce((a, r) => a + r[1], 0) * (HARD.score - 1))]);
   const score = rows.reduce((a, r) => a + r[1], 0);
   const rank = score >= 330000 ? 'S' : score >= 250000 ? 'A' : score >= 160000 ? 'B' : score >= 80000 ? 'C' : 'D';
   const gname = S.grade ? S.grade + '年' : 'ハードモード';
-  const share = `【まなびドラゴン】${gname} ${S.kuroWin ? '完全勝利！' : clear ? 'クリア！' : `${S.day}日目でたおれた`} スコア${fmt(score)}（ランク${rank}）正答率${acc}%`;
+  const share = `【まなびドラゴン】${gname} ${S.kuroWin ? '完全勝利！' : clear ? 'クリア！' : `${S.day}日目でたおれた`} スコア${fmt(score)}（ランク${rank}）正答率${acc}%${clear ? ` タイム${clock}` : ''}`;
   $('#panelIn').innerHTML = `
     <h1 class="ol">${S.kuroWin ? '⚔ 完全勝利！' : clear ? '🏆 ゲームクリア！' : '💀 ゲームオーバー'}</h1>${S.kuroWin ? '<p style="text-align:center">剣聖クロガネの試練をのりこえた！</p>' : ''}
     <div class="row" style="align-items:center">
       <div style="width:200px;height:200px">${playerArt('width:200px;height:200px;font-size:140px')}</div>
-      <div style="text-align:center"><p>${gname}　正答率 ${acc}%</p><div style="font-size:64px;color:#ffd54a">${fmt(score)}</div><h2>ランク ${rank}</h2></div>
+      <div style="text-align:center"><p>${gname}　正答率 ${acc}%${clear ? `　⏱ ${clock}` : ''}</p><div style="font-size:64px;color:#ffd54a">${fmt(score)}</div><h2>ランク ${rank}</h2></div>
     </div>
     <table>${rows.map(r => `<tr><td>${r[0]}</td><td>${fmt(r[1])}</td></tr>`).join('')}</table>
     ${S.wrong.length ? `<h2>📝 ふりかえり（まだ苦手な問題）</h2>${S.wrong.map(q => `<div class="exl">${esc(q.q)}　→ こたえ：<b style="color:#c2410c">${esc(q.c[0])}</b>${q.e ? `<br>💡${esc(q.e)}` : ''}</div>`).join('')}` : '<h2>苦手な問題はぜんぶこくふくした！</h2>'}
