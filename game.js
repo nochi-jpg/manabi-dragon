@@ -347,7 +347,7 @@ document.addEventListener('click', e => { const c = e.target.closest('[data-k]')
 function renderSide(phase) {
   $('#side').style.display = 'block';
   if (phase) $('#phase').innerHTML = phase;
-  $('#face').innerHTML = playerArt();
+  swapArt($('#face'), playerArt());
   gauge('#pGauge', S.hp / S.maxHp);
   $('#hpNum').textContent = `${fmt(S.hp)}/${fmt(S.maxHp)}`;
   $('#stats').innerHTML = SUBJ.map(s => { const up = statMul(s) > 1; return `<div><span style="color:${COLOR[s]}">${s}</span><span style="color:${up ? '#ffd54a' : COLOR[s]}">${up ? '▲' : ''}${eff(s)}</span></div>`; }).join('');
@@ -369,7 +369,20 @@ function renderInfo() {
   }
   $('#next').innerHTML = next;
 }
-function setChara(html) { $('#chara').innerHTML = html; }
+// キャラの入れかえ：ちがうキャラになったときだけ「ジワ〜っと」あらわれる
+function swapArt(el, html) {
+  const key = (html.match(/src="([^"]+)"/) || [])[1] || html;
+  if (html && el.dataset.key === key && el.innerHTML) return;
+  el.dataset.key = key; el.innerHTML = html;
+  const a = el.firstElementChild; if (a && html && !a.classList.contains('slidein')) a.classList.add('appear');
+}
+function setChara(html) { swapArt($('#chara'), html); }
+// 撃破：明滅してから崩れ落ちる
+function defeatFx() {
+  const ba = $('#bossArt'); if (!ba) return;
+  ba.classList.add('defeat'); $('#chara').dataset.key = '';
+  setTimeout(() => { const p = bossPoint(); particles({ x: p.x, y: p.y + 120 }, ['✦', '·', '◆'], '#cbd5e1', 18, 22, 160); }, 900 * SPD);
+}
 function setChoices(cls, items) {
   const c = $('#choices'); c.className = cls; c.innerHTML = items.map(i => i.html).join('');
   [...c.children].forEach((el, i) => { if (items[i].on) el.onclick = e => { e.stopPropagation(); items[i].on(el); }; });
@@ -1023,7 +1036,7 @@ async function lastRevive() {
   S.beaten++; S.turnBonus += Math.max(0, 12 - B.turn) * 300;
   anim('#stage', 'shakeBig'); $('#intent').style.display = 'none'; $('#cdBox').style.display = 'none';
   await say(`🎉 ${bName()}をたおした…！`, 1500);
-  const ba = $('#bossArt'); ba.style.transition = 'opacity .8s'; ba.style.opacity = 0;
+  defeatFx();
   await say('……', 900);
   await say('…いや、まだだ！ 闇の気配がふくれあがっていく…！', 1500);
   B.phase2 = true; B.pinched = false; B.hp = B.max = B.st.hp2; B.atkMul = 1.3; B.pi = 0; B.cd = 0; B.brk = 0; B.broken = false;
@@ -1041,7 +1054,7 @@ async function lastRevive3() {
   S.beaten++; S.turnBonus += Math.max(0, 12 - B.turn) * 300;
   anim('#stage', 'shakeBig'); $('#intent').style.display = 'none'; $('#cdBox').style.display = 'none'; clearChoices();
   await say(`${bName()}「${ASSETS.lines.last.defeat}」`, 0);
-  const ba = $('#bossArt'); ba.style.transition = 'opacity 1.2s'; ba.style.opacity = 0;
+  defeatFx();
   fxAdd(`<div class="blackout" style="animation-duration:${6 * SPD}s"></div>`, 6000 * SPD + 200);
   await wait(1600);
   B.phase3 = true; B.st = LAST3; B.pinched = false; B.hp = B.max = LAST3.hp; B.atk = LAST3.atk; B.atkMul = 1; B.pi = 0; B.cd = 0; B.brk = 0; B.broken = false;
@@ -1059,7 +1072,7 @@ async function lastRevive3() {
 async function victory() {
   S.beaten++; S.turnBonus += Math.max(0, 12 - B.turn) * 600;
   const last = B.idx === 3;
-  anim('#stage', 'shakeBig'); const ba = $('#bossArt'); ba.style.transition = 'opacity 1s'; ba.style.opacity = 0;
+  anim('#stage', 'shakeBig'); defeatFx();
   $('#intent').style.display = 'none'; $('#cdBox').style.display = 'none';
   const DL = LN(B.key);
   if (B.rematch && DL.rematchDefeat) await say(`${bName()}「${DL.rematchDefeat}」`, 0);   // 再会して倒したとき

@@ -286,6 +286,20 @@ table{width:100%;font-size:20px;border-collapse:collapse}td{padding:3px}td:last-
   animation:stamp .5s cubic-bezier(.2,1.4,.4,1) forwards,rainbowAura 1.8s linear .5s infinite}
 .rrank.r-SSS.on{text-shadow:0 0 10px #f43f5e,0 0 18px #eab308,0 0 26px #22c55e,0 0 34px #3b82f6}
 @keyframes rainbowAura{0%{background-position:0 0,0 0;box-shadow:0 0 22px 6px #f43f5e,0 0 46px 12px #a855f7}25%{box-shadow:0 0 22px 6px #eab308,0 0 46px 12px #f43f5e}50%{background-position:0 0,100% 0;box-shadow:0 0 22px 6px #22c55e,0 0 46px 12px #eab308}75%{box-shadow:0 0 22px 6px #3b82f6,0 0 46px 12px #22c55e}100%{background-position:0 0,200% 0;box-shadow:0 0 22px 6px #f43f5e,0 0 46px 12px #a855f7}}
+
+/* ---- キャラの登場・撃破トランジション ---- */
+.appear{animation:appear 1.2s ease-out backwards}
+@keyframes appear{0%{opacity:0;filter:blur(10px) brightness(2.2);transform:translateY(24px) scale(.96)}60%{opacity:1;filter:blur(1px) brightness(1.2)}100%{opacity:1;filter:none;transform:none}}
+#face .appear{animation-duration:.9s}
+#bossArt.defeat{animation:defeat 2.4s linear forwards;transform-origin:50% 100%}
+@keyframes defeat{
+  0%{opacity:1;filter:none;transform:none}
+  7%{opacity:.25;filter:brightness(3)}14%{opacity:1;filter:none}
+  21%{opacity:.25;filter:brightness(3)}28%{opacity:1;filter:none}
+  35%{opacity:.25;filter:brightness(3)}42%{opacity:1;filter:none;transform:none}
+  48%{transform:translateX(-10px)}54%{transform:translateX(10px)}60%{opacity:1;transform:translateX(0);filter:grayscale(.6) brightness(.8)}
+  85%{opacity:.85;transform:translateY(50px) scaleY(.6) scaleX(1.05);filter:grayscale(.9) brightness(.55) blur(2px)}
+  100%{opacity:0;transform:translateY(120px) scaleY(.25) scaleX(1.15);filter:grayscale(1) brightness(.35) blur(6px)}}
 </style>
 </head>
 <body>
