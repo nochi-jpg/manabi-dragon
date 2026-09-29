@@ -240,7 +240,7 @@ const SKILLS_SR = [
   { id: 'sr_elixir', name: '🌿 秘薬', desc: '保健の回復量4倍。ただし保健で間違えると最大HPの50%の反動ダメージ' },
   { id: 'sr_ichigeki', name: '💥 一撃必殺の刻印', desc: '20%でダメージ5倍。ただし20%でダメージ0.1倍' },
   { id: 'sr_beast', name: '🐾 獣の刻印', desc: 'カウントダウン中のダメージ5倍。それ以外は0.7倍' },
-  { id: 'sr_haisui', name: '💀 背水の書', desc: 'HPが80%以下のとき与えるダメージ3倍。ただし81%以上のときは0.75倍' },
+  { id: 'sr_haisui', name: '💀 決死の書', desc: 'HPが80%以下のとき与えるダメージ3倍。ただし81%以上のときは0.75倍' },
 ].map(k => ({ r: 3, ...k }));
 // レジェンド☆（出現条件は今後）
 const SKILLS_LR = [
@@ -260,7 +260,9 @@ const iName = k => rStar(k).trim() + k.name;                     // メッセー
 const iHtml = k => `<span class="rst r${k.r || 1}">${rStar(k)}</span>${k.name}`; // 一覧用（そろえて表示）
 const rCls = k => ' rar' + (k.r || 1);
 const skTitle = k => `<span class="rst r${k.r || 1}">${rStar(k).trim()}</span><b>${skLabel(k)}</b>`;
-const skillChoices = n => shuffle((S.grade === 0 ? SKILLS_HARD : SKILLS).filter(k => k.stack || !has(k.id))).slice(0, n);
+// 同じ系統（絵文字が同じ）のアイテムを1つでも持っていたら、その系統は出ない（紋章・法衣など重ねがけOKのものは除く）
+const famHeld = k => !k.stack && S.skills.some(x => skIcon(x) === skIcon(k));
+const skillChoices = n => shuffle((S.grade === 0 ? SKILLS_HARD : SKILLS).filter(k => k.stack || (!has(k.id) && !famHeld(k)))).slice(0, n);
 const skIcon = k => k.name.split(' ')[0], skLabel = k => k.name.split(' ').slice(1).join(' ');
 // ⑤ 入手したアイテムの効果を表示（クリックでとじる）
 function showItem(k, verb = '手に入れた') {
@@ -835,7 +837,7 @@ async function doTurn(s) {
     if (has('sr_elixir') && s === '保健') { recoil += 0.5; why.push('秘薬'); }
     if (has('lr_elixir') && s === '保健') { recoil += 0.9; why.push('古の秘薬'); }
     if (recoil) {
-      const d = Math.round(S.maxHp * Math.min(recoil > 0.6 ? 1 : 0.6, recoil)); S.hp = Math.max(0, S.hp - d);
+      const d = Math.round(S.maxHp * Math.min(recoil > 0.6 ? 1 : 0.6, recoil)); S.hp = Math.max(1, S.hp - d); // 反動ではたおれない（HP1残る）
       fxHurt(d); await wait(350); updateUI();
       await say(`🔥 ${why.join('・')}の反動！ ${fmt(d)}のダメージ！`, 1100);
       if (S.hp <= 0 && !(await survive())) return;
