@@ -510,12 +510,15 @@ async function lesson(s) {
   goDay(S.day + 1);
 }
 function saturday() {
-  lessonScene('スキル<br>イベント');
-  msg(`${ASSETS.master.name}「よくがんばった。ひとつ力を授けよう」`);
+  lessonScene('ルリの<br>おみせ');
+  const R = ASSETS.merchant;
+  setChara(imgArt([R.img], R.emoji));
+  const hello = weekOf(S.day) === 2 ? R.lines.helloLast : pick(R.lines.hello);
+  msg(`<div>${R.name}「${hello}」</div><div class="sub">ひとつえらんでね（無料！）</div>`);
   const ch = skillChoices(3);
   setChoices('c3', ch.map(k => ({
     html: `<button class="skcard pop"><span class="skic">${skIcon(k)}</span><b>${skLabel(k)}</b>${k.desc}</button>`,
-    on: async () => { clearChoices(); await gainItem(k); goDay(S.day + 1); },
+    on: async () => { clearChoices(); await gainItem(k, 'ルリからもらった'); await say(`${ASSETS.merchant.name}「${pick(ASSETS.merchant.lines.thanks)}」`, 0); goDay(S.day + 1); },
   })));
 }
 async function finalDay() {
@@ -813,7 +816,7 @@ async function victory() {
 async function ending(type) {
   ['#bossHp', '#intent', '#cdBox'].forEach(s => $(s).style.display = 'none'); clearChoices();
   setBg(ASSETS.bg.result, GRAD[0]); fxAdd('<div class="flash" style="background:#fff"></div>', 900);
-  setChara(masterArt()); S.hp = S.maxHp; renderSide('エンディング');
+  setChara(type === 'kuroWin' ? imgArt([ASSETS.kuroganeUp.img], ASSETS.kuroganeUp.emoji) : masterArt()); S.hp = S.maxHp; renderSide('エンディング');
   for (const t of ASSETS.story.ending[type]) await say(t.startsWith('「') ? `${ASSETS.master.name}${t}` : t, 0);
 }
 
@@ -864,7 +867,7 @@ function result(clear) {
 
 // 画像の先読み（ゲーム中の読み込み待ちをなくす）
 (function preload() {
-  const A = ASSETS, list = [A.logo, A.master.img, ...Object.values(A.boss).flatMap(b => [b.img, b.img2]),
+  const A = ASSETS, list = [A.logo, A.master.img, A.merchant.img, A.kuroganeUp.img, ...Object.values(A.boss).flatMap(b => [b.img, b.img2]),
     ...Object.values(A.bg).flat()];
   const P = A.player, keys = Object.values(A.romaji).concat('base');
   for (const k of keys) for (let t = 0; t < 3; t++) list.push(`${P.dir}${k}_${t}.png`);
