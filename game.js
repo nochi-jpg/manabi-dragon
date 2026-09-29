@@ -63,7 +63,7 @@ const pick = a => a[rnd(a.length)];
 const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fmt = n => Math.round(n).toLocaleString();
-const cap = n => Math.min(MAXST, Math.round(n));
+const cap = n => Math.round(n);   // もとのステータスは上限なしで記録（表示・計算は eff で9999まで。法衣があれば突破）
 const wait = ms => new Promise(r => setTimeout(r, ms * SPD));
 let SC = 1;
 // ---------- 画面サイズ合わせ（PC・スマホ共通） ----------
@@ -123,6 +123,9 @@ const nextBossDay = d => d >= FINAL_DAY ? FINAL_DAY : Math.min(FINAL_DAY, Math.c
 // 紋章・聖紋章はステータスに倍率をかける（最大9999）。失うと元の数値にもどる
 function statMul(s) { return Math.pow(EMBLEM.normal, count('boost_' + s)) * Math.pow(EMBLEM.hard, count('h_holy_' + s)) * Math.pow(1.5, count('sr_holy_' + s) + count('lr_robe_' + s)); }
 function eff(s) { const v = Math.round(S.st[s] * statMul(s)); return has('lr_robe_' + s) ? v : Math.min(MAXST, v); } // 法衣は9999を突破
+// オーバーフロー：法衣がないときに9999をこえている分（内部では記録していて、法衣を手に入れると還元される）
+function overflow(s) { return s === '保健' || has('lr_robe_' + s) ? 0 : Math.max(0, Math.round(S.st[s] * statMul(s)) - MAXST); }
+const ofTxt = s => overflow(s) > 0 ? `<span style="color:#fca5a5">（オーバーフロー ${fmt(overflow(s))}）</span>` : '';
 function plTop() { return SUBJ.reduce((a, s) => eff(s) > eff(a) ? s : a, '国語'); }
 function plTier() {
   const v = SUBJ.map(eff), m = Math.max(...v), sum = v.reduce((a, b) => a + b, 0), t = ASSETS.player.tiers;
@@ -327,8 +330,10 @@ function discardItem() {
   });
 }
 async function gainItem(k, verb) {
+  const robe = k.id.startsWith('lr_robe_') ? k.id.slice(8) : null, ov = robe ? overflow(robe) : 0, e0 = robe ? eff(robe) : 0;
   S.skills.push(k); renderSide();
   await showItem(k, verb);
+  if (robe && ov > 0) { anim('#face', 'hurt'); await say(`✨ ${k.name}の力で、たまっていたオーバーフロー ${fmt(ov)} が解放された！ <span style="color:${COLOR[robe]}">${robe}</span> ${fmt(e0)} → ${fmt(eff(robe))}`, 1800); }
   if (S.skills.length > MAX_ITEMS) await discardItem();
 }
 function skillPopup(k) {
@@ -627,8 +632,8 @@ async function wedEvent() {
       S.skills = []; renderSide();
       await say('アイテムが闇にのみこまれた…！ そして…', 1300);
       const mx = Math.max(...SUBJ.map(x => S.st[x])), top = pick(SUBJ.filter(x => S.st[x] === mx)); // 同値ならランダム
-      const b0 = S.st[top]; S.st[top] = Math.max(1, Math.floor(S.st[top] * 0.9)); renderSide(); anim('#face', 'hurt');
-      await say(`😈 <span style="color:${COLOR[top]}">${top}</span>の力をうばわれた！ ${b0} → ${S.st[top]}`, 1400);
+      const b0 = eff(top); S.st[top] = Math.max(1, Math.floor(S.st[top] * 0.9)); renderSide(); anim('#face', 'hurt');
+      await say(`😈 <span style="color:${COLOR[top]}">${top}</span>の力をうばわれた！ ${b0} → ${eff(top)}${ofTxt(top)}`, 1400);
       for (let i = 0; i < MAX_ITEMS; i++) await gainItem(skillChoices(1, 'devil')[0], '悪魔からもらった');
     } else await say(`${D.name}「${pick(D.lines.no)}」`, 0);
     eventCharaOff(); dim(false);
@@ -665,11 +670,11 @@ async function lesson(s) {
   if (r.ok) { S.correct++; gain = (500 + rnd(301) + (has('scholar') ? 200 : 0)) * (has('h_ougi') ? 1.8 : 1) * (has('sr_helm') ? 2 : 1); }
   else { gain = has('h_ougi') ? 0 : has('master') ? 400 + rnd(151) : 150 + rnd(101); if (!S.wrong.includes(q)) S.wrong.push(q); }
   if (!r.ok && has('sr_helm')) { S.st[s] = Math.max(1, Math.floor(S.st[s] * 0.8)); gain = 0; await say(`🎓 賢者の兜の反動… ${s}のステータスが×0.8！`, 1100); }
-  const before = S.st[s]; S.st[s] = cap(S.st[s] + gain); gain = S.st[s] - before;
+  const before = eff(s); S.st[s] = cap(S.st[s] + gain); gain = eff(s) - before;
   let extra = '';
   if (s === '保健') { const hp = r.ok ? HP_UP[0] : HP_UP[1]; S.maxHp += hp; S.hp += hp; extra = `　HP最大値 +${hp}`; }
   renderSide();
-  const up = `<span style="color:${COLOR[s]}">${s} +${gain}</span>${r.ok ? ' だいアップ！' : ' すこしアップ'}${extra}`;
+  const up = `<span style="color:${COLOR[s]}">${s} +${gain}</span>${r.ok ? ' だいアップ！' : ' すこしアップ'}${ofTxt(s)}${extra}`;
   if (r.ok) await say(`⭕ せいかい！　${up}`, 1500);
   else await say(explainHTML(q, `❌ ざんねん…　${up}　<span class="sub">（この問題はボス戦でも出るよ）</span>`), 0);
   if (plTier() > tierBefore) { anim('#face', 'hurt'); await say(`✨ ${ASSETS.player.name}が進化した！ ✨`, 1500); }
@@ -848,11 +853,11 @@ async function doTurn(s) {
     S.correct++; B.combo++;
     if (wasWrong) {
       S.wrong = S.wrong.filter(x => x !== q); S.overcome++;
-      const b0 = S.st[s]; S.st[s] = cap(S.st[s] + OVERCOME * (has('h_ougi') ? 1.2 : 1) * (has('sr_helm') ? 1.5 : 1)); renderSide();
-      await say(`★苦手こくふく！ <span style="color:${COLOR[s]}">${s}</span>の力が +${S.st[s] - b0}！`, 1000);
+      const b0 = eff(s); S.st[s] = cap(S.st[s] + OVERCOME * (has('h_ougi') ? 1.2 : 1) * (has('sr_helm') ? 1.5 : 1)); renderSide();
+      await say(`★苦手こくふく！ <span style="color:${COLOR[s]}">${s}</span>の力が +${eff(s) - b0}！${ofTxt(s)}`, 1000);
     }
     if (s === '保健') {
-      const heal = has('lr_elixir') ? S.maxHp : Math.round((150 + S.st.保健 * 0.25) * (has('herb') ? 1.5 : 1) * (has('h_elixir') ? 2.5 : 1) * (has('sr_elixir') ? 4 : 1) * (has('h_vamp') ? 0.5 : 1) * (has('sr_chimera') ? 0.25 : 1));
+      const heal = has('lr_elixir') ? S.maxHp : Math.round((150 + Math.min(MAXST, S.st.保健) * 0.25) * (has('herb') ? 1.5 : 1) * (has('h_elixir') ? 2.5 : 1) * (has('sr_elixir') ? 4 : 1) * (has('h_vamp') ? 0.5 : 1) * (has('sr_chimera') ? 0.25 : 1));
       const real = Math.min(heal, S.maxHp - S.hp); S.hp += real; B.pGuard = true;
       fxHeal('#face', real); updateUI();
       await say(`💗 HPが${fmt(real)}回復！ ガードのかまえ！`);
