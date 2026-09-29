@@ -7,8 +7,8 @@ window.ASSETS = {
     name: 'まなドラ',
     dir: 'images/player/',          // {教科}_{段階}.png → 例 kokugo_1.png（なければ base_{段階}.png → base_0.png）
     tiers: [1000, 5000],            // 一番高いステータスがこの値を超えると段階1、段階2へ進化
-    sumTier: 12000,                 // ステータス合計がこの値を超えても段階2（最終進化）へ
-    ultTier: 15000,                 // ステータス合計がこの値を超えると究極形態（ultimate.png）
+    sumTier: 9000,                  // ステータス合計がこの値を超えても段階2（最終進化）へ
+    ultTier: 12500,                 // ステータス合計がこの値を超えると究極形態（ultimate.png）
     ultimate: 'images/player/ultimate.png',
     emoji: ['🐣', '🐲', '🐉', '🐉'],      // 画像がないときの段階ごとの絵文字
   },

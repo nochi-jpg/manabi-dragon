@@ -11,20 +11,21 @@ const GLYPH = { 国語: ['あ', '文', '言', '筆'], 算数: ['＋', '×', '÷'
 const DOW = ['月', '火', '水', '木', '金', '土', '日'];
 const DOW_EN = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 const MAXST = 9999;
+const EMBLEM = { normal: 1.25, hard: 1.35 }; // 紋章（通常）・聖紋章（ハード）1個あたりのステータス倍率
 const MAX_ITEMS = 6;       // アイテムは最大6個
 const SKILL_DROP = 0.2;    // レッスン後にスキルを拾う確率
-const HARD = { dmg: 0.62, hurt: 1.35, score: 1.5 }; // ハードモード：与ダメ×0.62、被ダメ×1.35、スコア×1.5
-const HP_UP = [450, 180];  // 保健レッスンで増える最大HP（正解, 不正解）
+const HARD = { dmg: 0.62, hurt: 1.5, hp: 1.2, score: 1.5 }; // ハードモード：与ダメ×0.62、被ダメ×1.5、スコア×1.5
+const HP_UP = [300, 120];  // 保健レッスンで増える最大HP（正解, 不正解）
 const OVERCOME = 450;      // 苦手こくふくで追加される能力（最初に正解した場合との差）
-const DMG_MUL = 1.6;       // 与ダメージ倍率（試合時間の調整用）
+const DMG_MUL = 1.85;      // 与ダメージ倍率（試合時間の調整用）
 const FINAL_DAY = 22;
 
 // ボス設定：hp・atk・行動パターン（cd＝カウントダウンのターン数、brk＝ブレイクに必要なダメージ割合）
 const STAGES = [
-  { hp: 6000,  atk: 150, pat: ['attack', 'attack', 'guard', 'charge'] },
-  { hp: 18000, atk: 250, pat: ['attack', 'multi', 'guard', 'charge', 'attack', 'roar'] },
-  { hp: 40000, atk: 400, pat: ['attack', 'countdown', 'multi', 'haste', 'charge', 'guard', 'heal'], cd: 3, brk: 0.2 },
-  { hp: 32000, hp2: 40000, atk: 520, pat: ['shift', 'multi', 'countdown', 'haste', 'charge', 'attack', 'guard'],
+  { hp: 6000,  atk: 135, pat: ['attack', 'attack', 'guard', 'charge'] },
+  { hp: 18000, atk: 225, pat: ['attack', 'multi', 'guard', 'charge', 'attack', 'roar'] },
+  { hp: 40000, atk: 360, pat: ['attack', 'countdown', 'multi', 'haste', 'charge', 'guard', 'heal'], cd: 3, brk: 0.2 },
+  { hp: 28000, hp2: 34000, atk: 470, pat: ['shift', 'multi', 'countdown', 'haste', 'charge', 'attack', 'guard'],
     pat2: ['roar', 'countdown', 'multi', 'haste', 'shift', 'charge', 'heal'], cd: 3, brk: 0.15 },
 ];
 // ハードモード専用の行動パターン（STAGESに上書き）。absorb＝吸収攻撃、seal＝保健封印、issen＝今のHPの9割を削る奥義
@@ -81,7 +82,7 @@ const nextBossDay = d => d >= FINAL_DAY ? FINAL_DAY : Math.min(FINAL_DAY, Math.c
 
 // ---------- 自キャラ・ボス ----------
 // 紋章・聖紋章はステータスに倍率をかける（最大9999）。失うと元の数値にもどる
-function statMul(s) { return Math.pow(1.5, count('boost_' + s)) * Math.pow(2, count('h_holy_' + s)); }
+function statMul(s) { return Math.pow(EMBLEM.normal, count('boost_' + s)) * Math.pow(EMBLEM.hard, count('h_holy_' + s)); }
 function eff(s) { return Math.min(MAXST, Math.round(S.st[s] * statMul(s))); }
 function plTop() { return SUBJ.reduce((a, s) => eff(s) > eff(a) ? s : a, '国語'); }
 function plTier() {
@@ -130,7 +131,7 @@ function newRun(grade) {
   S = {
     grade, day: 0, hp: 600, maxHp: 600,
     st: { 国語: 100, 算数: 100, 理科: 100, 社会: 100, 英語: 100, 保健: 100 },
-    skills: [], wrong: [], weekSeen: [], allSeen: [], used: new Set(), bossEls: els,
+    skills: [], wrong: [], weekSeen: [], allSeen: [], used: new Set(), deck: {}, recent: [], bossEls: els,
     bossEl: els[0], correct: 0, total: 0, dmg: 0, beaten: 0, overcome: 0, turnBonus: 0, reviveUsed: false,
   };
   B = null;
@@ -141,18 +142,22 @@ function pool(s) {
   if (!p.length) p = DB.filter(q => q.s === s);
   return p;
 }
-function drawLessonQ(s) {
-  const p = pool(s); let fresh = p.filter(q => !S.used.has(q.id));
-  if (!fresh.length) { p.forEach(q => S.used.delete(q.id)); fresh = p; }
-  const q = pick(fresh); S.used.add(q.id); return q;
+// 教科ごとの「山札」：その教科の問題を一巡するまで同じ問題は出ない
+function markRecent(q) { S.recent.push(q.id); if (S.recent.length > 8) S.recent.shift(); }
+function drawFromDeck(s) {
+  if (!S.deck[s] || !S.deck[s].length) {
+    const p = shuffle(pool(s));
+    // 最近出た問題は山札の底へ（pop は末尾から引く）
+    S.deck[s] = p.filter(q => S.recent.includes(q.id)).concat(p.filter(q => !S.recent.includes(q.id)));
+  }
+  const q = S.deck[s].pop(); markRecent(q); return q;
 }
-function drawBattleQ(s, last) {
-  const w = S.wrong.filter(q => q.s === s && q.id !== last);
-  if (w.length && Math.random() < 0.7) return pick(w);
-  const seen = (weekOf(S.day) === 3 ? S.allSeen : S.weekSeen).filter(q => q.s === s && q.id !== last);
-  if (seen.length && Math.random() < 0.8) return pick(seen);
-  const p = pool(s).filter(q => q.id !== last);
-  return pick(p.length ? p : pool(s));
+function drawLessonQ(s) { return drawFromDeck(s); }
+function drawBattleQ(s) {
+  // 間違えた問題は40%の確率で出す（最近出たものは避ける）
+  const w = S.wrong.filter(q => q.s === s && !S.recent.slice(-4).includes(q.id));
+  if (w.length && Math.random() < 0.4) { const q = pick(w); markRecent(q); return q; }
+  return drawFromDeck(s);
 }
 const has = id => S.skills.some(k => k.id === id);
 const count = id => S.skills.filter(k => k.id === id).length;
@@ -160,7 +165,7 @@ const count = id => S.skills.filter(k => k.id === id).length;
 // ---------- スキル ----------
 const SKICON = { 国語: '📚', 算数: '🧮', 理科: '🧪', 社会: '🗾', 英語: '🔤' };
 const SKILLS = [
-  ...EL.concat('英語').map(s => ({ id: 'boost_' + s, name: `${SKICON[s]} ${s}の紋章`, desc: `${s}のステータス1.5倍（重ねがけOK・最大9999）`, stack: true })),
+  ...EL.concat('英語').map(s => ({ id: 'boost_' + s, name: `${SKICON[s]} ${s}の紋章`, desc: `${s}のステータス${EMBLEM.normal}倍（重ねがけOK・最大9999）`, stack: true })),
   { id: 'drain', name: '🦷 ドレインの牙', desc: '与えたダメージの10%だけHP回復' },
   { id: 'half', name: '👓 ひらめきメガネ', desc: 'ボス戦ごとに3回、4択を2択にできる' },
   { id: 'shield', name: '🛡️ ウロコの盾', desc: '受けるダメージ30%カット（大技にも有効）' },
@@ -175,7 +180,7 @@ const SKILLS = [
 ];
 // ハードモード専用アイテム（ハイリスク・ハイリターン）。ハードでは通常アイテムは出ない
 const SKILLS_HARD = [
-  ...EL.concat('英語').map(s => ({ id: 'h_holy_' + s, name: `${SKICON[s]} ${s}の聖紋章`, desc: `${s}のステータス2倍（重ねがけOK・最大9999）。ただし${s}で間違えると最大HPの20%の反動ダメージ`, stack: true })),
+  ...EL.concat('英語').map(s => ({ id: 'h_holy_' + s, name: `${SKICON[s]} ${s}の聖紋章`, desc: `${s}のステータス${EMBLEM.hard}倍（重ねがけOK・最大9999）。ただし${s}で間違えると最大HPの20%の反動ダメージ`, stack: true })),
   { id: 'h_vamp', name: '🦷 吸血の牙', desc: '与えたダメージの30%を吸収。ただし保健の回復量が半分になる' },
   { id: 'h_sage', name: '👓 賢者のメガネ', desc: 'ボス戦の問題がすべて2択になる。ただし与えるダメージ0.7倍' },
   { id: 'h_bigshield', name: '🛡️ 竜鱗の大盾', desc: '受けるダメージ50%カット。ただし与えるダメージ0.75倍' },
@@ -525,7 +530,7 @@ async function finalDay() {
 function battleStart(special) {
   const kuro = special === 'kurogane';
   const idx = kuro ? 4 : weekOf(S.day), last = idx === 3;
-  const st = kuro ? KUROGANE : S.grade === 0 ? { ...STAGES[idx], ...HARD_PAT[idx] } : STAGES[idx];
+  const st = kuro ? KUROGANE : S.grade === 0 ? { ...STAGES[idx], ...HARD_PAT[idx], hp: STAGES[idx].hp * HARD.hp, hp2: STAGES[idx].hp2 && STAGES[idx].hp2 * HARD.hp } : STAGES[idx];
   if (last || kuro) S.bossEl = pick(EL);
   B = {
     idx, st, key: kuro ? 'kurogane' : last ? 'last' : S.bossEl, sealed: false, tailUsed: false, hp: st.hp, max: st.hp, atk: st.atk, atkMul: 1, turn: 0, pi: 0,
@@ -650,7 +655,7 @@ function fxHeal(sel, h) { const p = sel === '#chara' ? bossPoint() : center(sel)
 // ----- 1ターン -----
 async function doTurn(s) {
   const it = B.intent;
-  const q = drawBattleQ(s, B.lastQ); B.lastQ = q.id;
+  const q = drawBattleQ(s);
   const wasWrong = S.wrong.includes(q);
   B.sealed = false;
   const r = await ask(q, {
