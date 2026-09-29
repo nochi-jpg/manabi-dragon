@@ -650,7 +650,7 @@ async function lessonDay() {
   lessonScene('教科強化<br>フェーズ');
   if (S.day === 1 && !S.introDone) {
     S.introDone = true; clearChoices();
-    for (const t of ASSETS.story.day1) await say(`${ASSETS.master.name}「${t}」`, 0);
+    for (const t of ST('day1')) await say(`${ASSETS.master.name}「${t}」`, 0);
   }
   const good = strongAgainst(S.bossEl);
   msg(`${ASSETS.master.name}「今日はどの教科を勉強する？」`);
@@ -698,7 +698,7 @@ function saturday() {
 async function finalDay() {
   lessonScene('ファイナル<br>デー');
   setBg(ASSETS.bg.last, GRAD[3]);
-  for (const t of ASSETS.story.final) await say(`${ASSETS.master.name}「${t}」`, 0);
+  for (const t of ST('final')) await say(`${ASSETS.master.name}「${t}」`, 0);
   await say(`${ASSETS.master.name}「やつは属性を変えて戦う。たおしても油断するな…闇の力で復活するかもしれん。カウントダウン大技はブレイクで止めるのだ！」`, 0);
   battleStart();
 }
@@ -719,8 +719,13 @@ function battleStart(special) {
   $('#bossHp').style.display = 'block'; $('#intent').style.display = 'block';
   drawBoss(); renderSide(kuro ? '最後の<br>試練' : last ? 'ファイナル<br>バトル' : '教科ボス<br>バトル'); renderInfo();
   B.intent = nextIntent(); updateUI();
-  say(`${bName()}があらわれた！`, 1300).then(() => { const L = ASSETS.lines[B.key]; return say(`${bName()}「${B.rematch && L.rematch ? L.rematch : pickLine(L.intro)}」`, 0); }).then(showCmd);
+  say(`${bName()}があらわれた！`, 1300).then(() => { const L = LN(B.key); return say(`${bName()}「${B.rematch && L.rematch ? L.rematch : pickLine(L.intro)}」`, 0); }).then(showCmd);
 }
+// 難易度ごとのセリフ（assets.js の modeLines で上書き。なければ通常のセリフ）
+const modeKey = () => S && S.extreme ? 'extreme' : S && S.grade === 0 ? 'hard' : null;
+const ML = () => (ASSETS.modeLines || {})[modeKey()] || {};
+const LN = key => ({ ...ASSETS.lines[key], ...((ML().lines || {})[key] || {}) });
+const ST = name => (ML().story || {})[name] || ASSETS.story[name];
 const pickLine = v => Array.isArray(v) ? pick(v) : v;
 function bName() { const b = bossData(B.key); return B.phase3 && b.name3 ? b.name3 : B.phase2 && b.name2 ? b.name2 : b.name; }
 function drawBoss() { const b = bossData(B.key); setChara(`<div id="bossArt" style="position:relative">${B.phase3 ? imgArt([b.img3], '👼') : bossArt(B.key, B.phase2)}</div>`); }
@@ -903,7 +908,7 @@ async function doTurn(s) {
       await say(t); updateUI();
       if (B.cd > 0 && !B.broken && B.brk >= B.brkNeed) { B.broken = true; anim('#stage', 'shakeBig'); updateUI(); await say('💥 ブレイク！ 大技を止めた！'); }
       if (B.hp > 0 && B.hp <= B.max / 2 && !B.pinched) {
-        B.pinched = true; const L = ASSETS.lines[B.key], line = B.phase3 ? L.pinch3 : B.phase2 && L.pinch2 ? L.pinch2 : pickLine(L.pinch);
+        B.pinched = true; const L = LN(B.key), line = B.phase3 ? L.pinch3 : B.phase2 && L.pinch2 ? L.pinch2 : pickLine(L.pinch);
         if (line) { anim('#chara', 'hurt'); await say(`${bName()}「${line}」`, 0); }
       }
       if (B.idx === 3 && B.phase2 && !B.sanctUsed && B.hp > 0 && B.hp <= B.max / 2) {
@@ -915,7 +920,7 @@ async function doTurn(s) {
       if (B.idx === 4 && !B.armor && B.hp > 0 && B.hp <= B.max / 2) {
         B.armor = true; anim('#stage', 'shakeBig'); fxAdd('<div class="flash" style="background:#bae6fd"></div>', 700); updateUI();
         const tops = armorTops();
-        await say(`${bName()}「${ASSETS.lines.kurogane.armor}」`, 0);
+        await say(`${bName()}「${LN('kurogane').armor}」`, 0);
         await say(`🛡 せいなるよろい！ ${tops.join('・')}の攻撃ダメージが${tops.length > 1 ? '1/5' : '1/3'}になる！`, 1800);
       }
       if (it.type === 'charge' && m === 2) { B.interrupt = true; await say('ばつぐんの一撃でボスがひるんだ！ ためが消えた！'); }
@@ -975,7 +980,7 @@ async function survive() {
     B.used[id] = true; SUBJ.forEach(x => S.st[x] = Math.max(1, Math.floor(S.st[x] * 0.8))); S.hp = Math.min(hp, S.maxHp); fxHeal('#face', S.hp); updateUI();
     await say(`🪶 ${nm}が燃え上がった！ HP${S.hp}で踏みとどまった！（全ステータス×0.8）`, 1600); return true;
   }
-  if (B.idx === 4) { await say(`${ASSETS.player.name}はひざをついた…`, 1200); await say(`${bName()}「${ASSETS.lines.kurogane.lose}」`, 0); await ending('kuroLose'); result(true); return false; }
+  if (B.idx === 4) { await say(`${ASSETS.player.name}はひざをついた…`, 1200); await say(`${bName()}「${LN('kurogane').lose}」`, 0); await ending('kuroLose'); result(true); return false; }
   await say(`${ASSETS.player.name}はたおれてしまった…`, 1500); result(false); return false;
 }
 async function hitP(raw, label, noWeak, pure) {
@@ -1056,7 +1061,7 @@ async function victory() {
   const last = B.idx === 3;
   anim('#stage', 'shakeBig'); const ba = $('#bossArt'); ba.style.transition = 'opacity 1s'; ba.style.opacity = 0;
   $('#intent').style.display = 'none'; $('#cdBox').style.display = 'none';
-  const DL = ASSETS.lines[B.key];
+  const DL = LN(B.key);
   if (B.rematch && DL.rematchDefeat) await say(`${bName()}「${DL.rematchDefeat}」`, 0);   // 再会して倒したとき
   if (B.idx === 2 && DL.final) await say(`${bName()}「${DL.final}」`, 0);                  // 21日目：あのお方の復活
   else if (B.phase3) await say(`${bName()}「${DL.defeat3}」`, 0);
@@ -1087,7 +1092,7 @@ async function trialIntro() {
   setBg(ASSETS.bg.result, GRAD[0]); fxAdd('<div class="flash" style="background:#fff"></div>', 900);
   setChara(masterArt());
   S.hp = S.maxHp; renderSide('最後の<br>試練');
-  for (const t of ASSETS.story.trial) await say(t.startsWith('「') ? `${ASSETS.master.name}${t}` : t, 0);
+  for (const t of ST('trial')) await say(t.startsWith('「') ? `${ASSETS.master.name}${t}` : t, 0);
   battleStart('kurogane');
 }
 
