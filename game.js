@@ -264,9 +264,9 @@ const skTitle = k => `<span class="rst r${k.r || 1}">${rStar(k).trim()}</span><b
 const famHeld = k => !k.stack && S.skills.some(x => skIcon(x) === skIcon(k));
 // ---- アイテムの出現率（★, ★★, ★★★, ☆ の%）。devil＝悪魔のささやき、base＝それ以外すべて ----
 const DROP_RATE = {
-  normal:  { base: [85, 10, 5, 0],  devil: [20, 60, 15, 5] },
-  hard:    { base: [70, 15, 10, 5], devil: [0, 60, 35, 5] },
-  extreme: { base: [30, 40, 20, 10], devil: [0, 50, 40, 10] },   // エクストリーム（今後追加する難易度）
+  normal:  { base: [85, 10, 5, 0],  devil: [20, 60, 15, 5], ruriLast: [20, 65, 9, 1] },
+  hard:    { base: [70, 15, 10, 5], devil: [0, 60, 35, 5], ruriLast: [0, 50, 40, 10] },
+  extreme: { base: [30, 40, 20, 10], devil: [0, 50, 40, 10], ruriLast: [0, 0, 40, 60] },   // エクストリーム（今後追加する難易度）
 };
 const diffKey = () => S.extreme ? 'extreme' : S.grade === 0 ? 'hard' : 'normal';
 const POOLS = () => [SKILLS, SKILLS_HARD, SKILLS_SR, SKILLS_LR];
@@ -276,8 +276,8 @@ function rollRarity(kind = 'base') {
 }
 const canGet = (k, taken) => k.stack || (!has(k.id) && !famHeld(k) && !taken.some(t => t.id === k.id || skIcon(t) === skIcon(k)));
 // n個をえらぶ（1個ずつレアリティを抽選。その星の表が空なら、近い星の表から出す）
-function skillChoices(n, kind = 'base') {
-  const out = [];
+function skillChoices(n, kind = 'base', pre = []) {
+  const out = [...pre];
   for (let i = 0; i < n; i++) {
     const r = rollRarity(kind), order = [r, r - 1, r - 2, r - 3, r + 1, r + 2, r + 3].filter(x => x >= 1 && x <= 4);
     for (const rr of order) {
@@ -285,7 +285,19 @@ function skillChoices(n, kind = 'base') {
       if (c.length) { out.push(pick(c)); break; }
     }
   }
-  return out;
+  return pre.length ? shuffle(out) : out;
+}
+// ルリのおみせ（最終週）：確定枠つきの3枚
+function ruriLastChoices() {
+  const d = diffKey(), from = (pool, f = () => true) => pick(pool.filter(k => canGet(k, []) && f(k)));
+  let g;
+  if (d === 'normal') g = from(SKILLS_SR);                                           // 激レア確定
+  else if (d === 'hard') g = from(Math.random() < 0.8 ? SKILLS_SR : SKILLS_LR) || from(SKILLS_SR) || from(SKILLS_LR); // 激レア以上確定（40:10）
+  else {                                                                             // 一番高い教科の法衣確定（持っていたら他のレジェンド）
+    const top = ['国語', '算数', '理科', '社会', '英語'].reduce((a, x) => eff(x) > eff(a) ? x : a, '国語');
+    g = has('lr_robe_' + top) ? from(SKILLS_LR, k => k.id !== 'lr_robe_' + top) : SKILLS_LR.find(k => k.id === 'lr_robe_' + top);
+  }
+  return skillChoices(g ? 2 : 3, 'ruriLast', g ? [g] : []);
 }
 // 師匠のおくりもの：一番高い教科の紋章（レアリティ抽選：紋章→聖紋章→神聖紋章→法衣）
 function emblemGift(top) { return POOLS()[rollRarity() - 1].find(k => k.stack && k.id.endsWith('_' + top)); }
@@ -618,7 +630,7 @@ function saturday() {
   setChara(imgArt([R.img], R.emoji));
   const hello = weekOf(S.day) === 2 ? R.lines.helloLast : pick(R.lines.hello);
   msg(`<div>${R.name}「${hello}」</div><div class="sub">ひとつえらんでね（無料！）</div>`);
-  const ch = skillChoices(3);
+  const ch = weekOf(S.day) === 2 ? ruriLastChoices() : skillChoices(3);
   setChoices('c3', ch.map(k => ({
     html: `<button class="skcard pop${rCls(k)}"><span class="skic">${skIcon(k)}</span>${skTitle(k)}${k.desc}</button>`,
     on: async () => { clearChoices(); await gainItem(k, 'ルリからもらった'); await say(`${ASSETS.merchant.name}「${pick(ASSETS.merchant.lines.thanks)}」`, 0); goDay(S.day + 1); },
