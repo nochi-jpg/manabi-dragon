@@ -839,6 +839,33 @@ async function trialIntro() {
 }
 
 // ---------- 結果 ----------
+// リザルト演出：1項目ずつ「ドン！」と表示し、合計スコアをカウントアップ、最後にランクをハンコのように押す
+async function resultShow(rows, total) {
+  const P = $('#panel'), box = $('#panelIn'), els = [...box.querySelectorAll('.rrow')], sc = $('#rScore');
+  let skip = false, cur = 0;
+  const finish = () => {
+    skip = true; els.forEach(e => e.classList.add('on')); sc.textContent = fmt(total);
+    $('#rRank').classList.add('on'); $('#rRest').style.opacity = 1; $('#rSkip').style.display = 'none';
+  };
+  P.onclick = e => { if (!e.target.closest('button')) finish(); };
+  const count = (from, to, ms) => new Promise(res => {
+    const t0 = performance.now();
+    const step = t => { if (skip) return res(); const r = Math.min(1, (t - t0) / ms); sc.textContent = fmt(from + (to - from) * (1 - Math.pow(1 - r, 3))); r < 1 ? requestAnimationFrame(step) : res(); };
+    requestAnimationFrame(step);
+  });
+  await wait(500);
+  for (let i = 0; i < rows.length && !skip; i++) {
+    els[i].classList.add('on'); anim('#panelIn', 'shake');
+    sc.classList.remove('bump'); void sc.offsetWidth; sc.classList.add('bump');
+    await count(cur, cur + rows[i][1], rows[i][1] > 0 ? 450 : 150); cur += rows[i][1];
+    if (!skip) await wait(rows[i][1] > 0 ? 200 : 80);
+  }
+  if (skip) return;
+  sc.textContent = fmt(total); await wait(400); if (skip) return;
+  $('#rRank').classList.add('on'); anim('#panelIn', 'shakeBig');
+  await wait(700); if (skip) return;
+  finish();
+}
 function result(clear) {
   setBg(clear ? ASSETS.bg.result : ASSETS.bg.gameover, GRAD[clear ? 0 : 3]);
   clearChoices(); $('#msgbar').style.display = 'none';
@@ -862,15 +889,21 @@ function result(clear) {
   const rank = score >= 330000 ? 'S' : score >= 250000 ? 'A' : score >= 160000 ? 'B' : score >= 80000 ? 'C' : 'D';
   const gname = S.grade ? S.grade + '年' : 'ハードモード';
   const share = `【まなびドラゴン】${gname} ${S.kuroWin ? '完全勝利！' : clear ? 'クリア！' : `${S.day}日目でたおれた`} スコア${fmt(score)}（ランク${rank}）正答率${acc}%${clear ? ` タイム${clock}` : ''}`;
+  const RCOL = { S: '#ffd54a', A: '#f472b6', B: '#38bdf8', C: '#4ade80', D: '#cbd5e1' };
   $('#panelIn').innerHTML = `
     <h1 class="ol">${S.kuroWin ? '⚔ 完全勝利！' : clear ? '🏆 ゲームクリア！' : '💀 ゲームオーバー'}</h1>${S.kuroWin ? '<p style="text-align:center">剣聖クロガネの試練をのりこえた！</p>' : ''}
     <div class="row" style="align-items:center">
-      <div style="width:200px;height:200px">${playerArt('width:200px;height:200px;font-size:140px')}</div>
-      <div style="text-align:center"><p>${gname}　正答率 ${acc}%${clear ? `　⏱ ${clock}` : ''}</p><div style="font-size:64px;color:#ffd54a">${fmt(score)}</div><h2>ランク ${rank}</h2></div>
+      <div style="width:180px;height:180px">${playerArt('width:180px;height:180px;font-size:120px')}</div>
+      <div style="text-align:center;min-width:360px"><p>${gname}　正答率 ${acc}%${clear ? `　⏱ ${clock}` : ''}</p>
+        <div id="rScore" class="rscore">0</div>
+        <div id="rRank" class="rrank" style="color:${RCOL[rank]}">${rank}</div></div>
     </div>
-    <table>${rows.map(r => `<tr><td>${r[0]}</td><td>${fmt(r[1])}</td></tr>`).join('')}</table>
+    <div class="rlist">${rows.map(r => `<div class="rrow"><span>${r[0]}</span><b>${fmt(r[1])}</b></div>`).join('')}</div>
+    <div id="rRest" style="opacity:0;transition:opacity .5s">
     ${S.wrong.length ? `<h2>📝 ふりかえり（まだ苦手な問題）</h2>${S.wrong.map(q => `<div class="exl">${esc(q.q)}　→ こたえ：<b style="color:#c2410c">${esc(q.c[0])}</b>${q.e ? `<br>💡${esc(q.e)}` : ''}</div>`).join('')}` : '<h2>苦手な問題はぜんぶこくふくした！</h2>'}
-    <div class="row" style="margin-top:14px"><button class="btn gold" id="again">もういちど</button><button class="btn gray" id="copy">結果をコピー</button></div>`;
+    <div class="row" style="margin-top:14px"><button class="btn gold" id="again">もういちど</button><button class="btn gray" id="copy">結果をコピー</button></div></div>
+    <p class="rskip" id="rSkip">クリックでスキップ</p>`;
+  resultShow(rows, score);
   $('#panel').style.display = 'flex';
   $('#again').onclick = title;
   $('#copy').onclick = () => { navigator.clipboard ? navigator.clipboard.writeText(share).then(() => toast('コピーしました'), () => prompt('コピーしてね', share)) : prompt('コピーしてね', share); };
