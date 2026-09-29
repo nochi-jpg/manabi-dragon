@@ -2,7 +2,7 @@
 const $ = s => document.querySelector(s);
 const stage = $('#stage');
 const SPD = window.FAST ? 0.02 : 1;                          // テスト用高速化
-const EL = ['国語', '算数', '理科', '社会'];               // 4すくみ：国語→算数→理科→社会→国語（矢印の先に2倍）
+const EL = ['国語', '算数', '理科', '社会'];               // 4すくみ：国語の敵には算数、算数の敵には理科、理科の敵には社会、社会の敵には国語が2倍
 const SUBJ = ['国語', '算数', '理科', '社会', '英語', '保健'];
 const COLOR = { 国語: '#ff4d4d', 算数: '#38bdf8', 理科: '#4ade80', 社会: '#facc15', 英語: '#818cf8', 保健: '#f472b6' };
 const BTNC  = { 国語: '#dc2626', 算数: '#0284c7', 理科: '#16a34a', 社会: '#ca8a04', 英語: '#6366f1', 保健: '#db2777' };
@@ -96,13 +96,13 @@ function imgArt(list, emoji, cls = '', style = '') {
   return `<div class="art ${cls}" style="${style}"><img src="${list[0]}" data-fb="${list.slice(1).join('|')}" onerror="imgFb(this)" onload="this.nextElementSibling.style.display='none'" alt=""><span class="emo">${emoji}</span></div>`;
 }
 function setBg(img, grad) { stage.style.backgroundImage = `url("${img}"), ${grad}`; }
-function strongAgainst(def) { const j = EL.indexOf(def); return j < 0 ? null : EL[(j + 3) % 4]; }
+function strongAgainst(def) { const j = EL.indexOf(def); return j < 0 ? null : EL[(j + 1) % 4]; }
 function mult(atk, def) {
   if (atk === '英語') return 1;
   const i = EL.indexOf(atk), j = EL.indexOf(def);
   if (i < 0 || j < 0) return 1;
-  if ((i + 1) % 4 === j) return 2;
-  if ((j + 1) % 4 === i) return 0.5;
+  if ((j + 1) % 4 === i) return 2;     // 攻撃側が、敵の「次」の教科なら2倍（例：国語の敵に算数）
+  if ((i + 1) % 4 === j) return 0.5;
   return 1;
 }
 function gauge(sel, r) { $(sel + ' .mask').style.width = (1 - Math.max(0, Math.min(1, r))) * 100 + '%'; }
@@ -419,9 +419,9 @@ function tutorial() {
       <p><b style="color:#ff6b6b">7日目の日曜日にボスが出るぞ！</b> 3週間で4人目の大ボスまでたおそう。</p>
     </div>
     <div class="tsec">
-      <div class="thead">② 教科の相性（矢印の先に <b style="color:#fde047">2倍</b> ダメージ／逆向きは ½）</div>
+      <div class="thead">② 教科の相性（矢印の先の敵に <b style="color:#fde047">2倍</b> ダメージ／逆向きは ½）</div>
       <div class="tcycle">
-        ${node('国語', '炎')}<span class="arr">▶</span>${node('算数', '水')}<span class="arr">▶</span>${node('理科', '草')}<span class="arr">▶</span>${node('社会', '雷')}<span class="arr">▶</span>${node('国語', '炎')}
+        ${node('算数', '水')}<span class="arr">▶</span>${node('国語', '炎')}<span class="arr">▶</span>${node('社会', '雷')}<span class="arr">▶</span>${node('理科', '草')}<span class="arr">▶</span>${node('算数', '水')}
       </div>
       <div class="tother">
         ${node('英語', 'いつでも等倍')}<span>相性なし。どのボスにも安定</span>
