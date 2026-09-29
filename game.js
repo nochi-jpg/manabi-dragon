@@ -538,7 +538,8 @@ function battleStart(special) {
   const st = kuro ? KUROGANE : S.grade === 0 ? { ...STAGES[idx], ...HARD_PAT[idx], hp: STAGES[idx].hp * HARD.hp, hp2: STAGES[idx].hp2 && STAGES[idx].hp2 * HARD.hp } : STAGES[idx];
   if (last || kuro) S.bossEl = pick(EL);
   B = {
-    idx, st, key: kuro ? 'kurogane' : last ? 'last' : S.bossEl, sealed: false, tailUsed: false, hp: st.hp, max: st.hp, atk: st.atk, atkMul: 1, turn: 0, pi: 0,
+    idx, st, key: kuro ? 'kurogane' : last ? 'last' : S.bossEl, sealed: false, tailUsed: false,
+    rematch: idx < 3 && S.bossEls.slice(0, idx).includes(S.bossEl), hp: st.hp, max: st.hp, atk: st.atk, atkMul: 1, turn: 0, pi: 0,
     combo: 0, half: has('half') ? 3 : 0, lastQ: null, cd: 0, brk: 0, brkNeed: 0, broken: false,
     forced: null, interrupt: false, pGuard: false, pWeak: false, phase2: false,
   };
@@ -546,8 +547,9 @@ function battleStart(special) {
   $('#bossHp').style.display = 'block'; $('#intent').style.display = 'block';
   drawBoss(); renderSide(kuro ? '最後の<br>試練' : last ? 'ファイナル<br>バトル' : '教科ボス<br>バトル'); renderInfo();
   B.intent = nextIntent(); updateUI();
-  say(`${bName()}があらわれた！`, 1300).then(() => say(`${bName()}「${ASSETS.lines[B.key].intro}」`, 0)).then(showCmd);
+  say(`${bName()}があらわれた！`, 1300).then(() => { const L = ASSETS.lines[B.key]; return say(`${bName()}「${B.rematch && L.rematch ? L.rematch : pickLine(L.intro)}」`, 0); }).then(showCmd);
 }
+const pickLine = v => Array.isArray(v) ? pick(v) : v;
 function bName() { const b = bossData(B.key); return B.phase2 && b.name2 ? b.name2 : b.name; }
 function drawBoss() { setChara(`<div id="bossArt" style="position:relative">${bossArt(B.key, B.phase2)}</div>`); }
 
@@ -709,7 +711,7 @@ async function doTurn(s) {
       await say(t); updateUI();
       if (B.cd > 0 && !B.broken && B.brk >= B.brkNeed) { B.broken = true; anim('#stage', 'shakeBig'); updateUI(); await say('💥 ブレイク！ 大技を止めた！'); }
       if (B.hp > 0 && B.hp <= B.max / 2 && !B.pinched) {
-        B.pinched = true; const L = ASSETS.lines[B.key], line = B.phase2 && L.pinch2 ? L.pinch2 : L.pinch;
+        B.pinched = true; const L = ASSETS.lines[B.key], line = B.phase2 && L.pinch2 ? L.pinch2 : pickLine(L.pinch);
         if (line) { anim('#chara', 'hurt'); await say(`${bName()}「${line}」`, 0); }
       }
       if (it.type === 'charge' && m === 2) { B.interrupt = true; await say('ばつぐんの一撃でボスがひるんだ！ ためが消えた！'); }
@@ -803,7 +805,10 @@ async function victory() {
   const last = B.idx === 3;
   anim('#stage', 'shakeBig'); const ba = $('#bossArt'); ba.style.transition = 'opacity 1s'; ba.style.opacity = 0;
   $('#intent').style.display = 'none'; $('#cdBox').style.display = 'none';
-  await say(`${bName()}「${ASSETS.lines[B.key].defeat}」`, 0);
+  const DL = ASSETS.lines[B.key];
+  if (B.rematch && DL.rematchDefeat) await say(`${bName()}「${DL.rematchDefeat}」`, 0);   // 再会して倒したとき
+  if (B.idx === 2 && DL.final) await say(`${bName()}「${DL.final}」`, 0);                  // 21日目：あのお方の復活
+  else if (!B.rematch) await say(`${bName()}「${pickLine(DL.defeat)}」`, 0);
   await say(`🎉 ${bName()}をたおした！（${B.turn + 1}ターン）`, 1800);
   if (B.idx === 4) { S.kuroWin = true; await ending('kuroWin'); return result(true); }
   if (last && S.grade === 0) return trialIntro();
