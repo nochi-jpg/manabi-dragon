@@ -1167,7 +1167,7 @@ function result(clear) {
     : !S.extreme ? `<div class="rpass">🔓 パスワード <b>${PASSWORD.extreme}</b><br><small>「むずい」と覚えてね！タイトル画面で入力してみよう！</small></div>` : '';
   const sNote = rank.startsWith('S') ? '' : `<p class="rnote">Sランクの条件：クリア・正答率${RANK.sAcc}%以上・${fmt(RANK.S * (S.grade === 0 ? DIFF().score : 1))}点以上</p>`;
   const gname = S.grade ? S.grade + '年' : S.extreme ? 'エクストリーム' : 'ハードモード';
-  const share = `【まなびドラゴン】${gname} ${S.trueWin ? '真・完全勝利！' : S.kuroWin ? '完全勝利！' : clear ? 'クリア！' : `${S.day}日目でたおれた`} スコア${fmt(score)}（ランク${rank}）正答率${acc}%${clear ? ` タイム${clock}` : ''}`;
+  const share = `【まなびドラゴン】${gname} ${S.trueWin ? '真・完全勝利！' : S.kuroWin ? '完全勝利！' : clear ? 'クリア！' : `${S.day}日目でたおれた`} スコア${fmt(score)}（ランク${rank}）正答率${acc}%${clear ? ` タイム${clock}` : ''}\n${SUBJ.map(s => `${s}${eff(s)}`).join(' ')} HP${S.maxHp}${S.skills.length ? `\nアイテム：${S.skills.map(k => skLabel(k)).join('・')}` : ''}`;
   const RCOL = { SSS: '#fff7ae', SS: '#7dd3fc', S: '#ffd54a', A: '#f472b6', B: '#38bdf8', C: '#4ade80', D: '#cbd5e1' };
   const W = S.wrong, PER = 5, pages = Math.max(1, Math.ceil(W.length / PER));
   $('#panelIn').classList.add('resmode');
@@ -1177,7 +1177,9 @@ function result(clear) {
         <h1 class="ol">${S.trueWin ? '☆ 真・完全勝利！' : S.kuroWin ? '⚔ 完全勝利！' : clear ? '🏆 ゲームクリア！' : '💀 ゲームオーバー'}</h1>
         ${S.trueWin ? '<p class="rsub">ワスレーヌの本当の姿をたおした！</p>' : S.kuroWin ? '<p class="rsub">剣聖クロガネの試練をのりこえた！</p>' : ''}
         <p class="rsub">${gname}　正答率 ${acc}%${clear ? `　⏱ ${clock}` : ''}</p>
-        <div class="rart">${playerArt('width:130px;height:130px;font-size:96px')}</div>
+        <div class="rchar"><div class="rart">${playerArt('width:130px;height:130px;font-size:96px')}</div>
+          <div class="rstat">${SUBJ.map(s => `<span style="color:${COLOR[s]}">${s}</span><b>${fmt(eff(s))}</b>`).join('')}<span style="color:#f87171">HP</span><b>${fmt(S.maxHp)}</b>
+            ${S.skills.length ? `<div class="ritems">${S.skills.map(k => `<span title="${esc(skLabel(k))}">${skIcon(k)}</span>`).join('')}</div>` : ''}</div></div>
         <div id="rScore" class="rscore">0</div>
         <div id="rRank" class="rrank r-${rank}" style="color:${RCOL[rank]}">${rank}</div>
         <div class="rfade">${pass}${sNote}
