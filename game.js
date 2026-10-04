@@ -469,8 +469,8 @@ function dateCut(from, to) {
 const PASSWORD = { hard: '961', extreme: '621' };   // 961＝くろい、621＝むずい
 const UNLOCK = { hard: false, extreme: false };   // 解除はブラウザに保存（下の store から読みこむ）
 const LOCK_HINT = {
-  hard: '🔒 ハードモードはロックされています。<br>4〜6年のどれかをクリアすると、パスワードが手に入るよ！<br>タイトル画面の「🔑 パスワード」で入力しよう。',
-  extreme: '🔒 エクストリームはロックされています。<br>ハードモードをクリアすると、パスワードが手に入るよ！<br>タイトル画面の「🔑 パスワード」で入力しよう。',
+  hard: '<b style="display:inline;font-size:22px">解禁条件</b><br>ノーマル（4〜6年）を<br>ノーコンティニューでクリア',
+  extreme: '<b style="display:inline;font-size:22px">解禁条件</b><br>ハードを<br>ノーコンティニューでクリア',
 };
 function lockNotice(html) {
   const m = $('#modal'); m.style.display = 'flex';
@@ -543,7 +543,7 @@ function unpack(v) {
 function stOf(b) { return b.phase3 ? LAST3 : b.idx === 4 ? KUROGANE : S.grade === 0 ? { ...STAGES[b.idx], ...HARD_PAT[b.idx], hp: STAGES[b.idx].hp * DIFF().hp, hp2: STAGES[b.idx].hp2 && STAGES[b.idx].hp2 * DIFF().hp } : STAGES[b.idx]; }
 // where：'day'（その日の最初から）／'lesson'（教科えらび）／'battle'（バトル中）
 function saveGame(where) {
-  if (NOLIMIT || !S) return;
+  if (NOLIMIT || !S || S.over) return;
   const st = { ...S, t0: undefined, elapsed: S.t0 ? Date.now() - S.t0 : 0 };
   const b = B ? { ...B, st: undefined } : null;
   store.save = { where, S: pack(st), B: pack(b), at: Date.now() };
@@ -612,23 +612,14 @@ function showResultSnap(L) {
   $('#again').textContent = '記録にもどる'; $('#again').onclick = recordScreen;
   $('#copy').onclick = () => { navigator.clipboard ? navigator.clipboard.writeText(L.share).then(() => toast('コピーしました'), () => prompt('コピーしてね', L.share)) : prompt('コピーしてね', L.share); };
 }
-function confirmStart(grade, extreme) {
-  if (NOLIMIT) return newRun(grade, extreme);
-  const m = $('#modal'); m.style.display = 'flex';
-  m.innerHTML = `<div class="modalBox pop"><div style="font-size:54px;line-height:1.1">🐉</div><p style="line-height:1.6">今日の挑戦は、あと<span style="color:#b45309;font-weight:bold;font-size:26px">${playsLeft()}回</span>！<br>このモードではじめる？</p>
-    <p style="font-size:15px;margin:0">とちゅうで「⏸中断」すると、続きはあとで遊べるよ</p>
-    <div class="row" style="margin-top:12px"><button class="btn gold" id="cfYes">はじめる！</button><button class="btn gray" id="cfNo">やめる</button></div></div>`;
-  m.onclick = null;
-  $('#cfNo').onclick = () => { m.style.display = 'none'; };
-  $('#cfYes').onclick = () => { m.style.display = 'none'; const t = today(); store.plays = { date: t, n: (store.plays && store.plays.date === t ? store.plays.n : 0) + 1 }; persist(); newRun(grade, extreme); };
-}
+function confirmStart(grade, extreme) { newRun(grade, extreme); }
 // タイトルの状態：ねている／つづきから／今日はおわり／えらべる
 function titleMode() { return awake() && !store.save && !playedToday(); }
 function titleState() {
   const last = '';
   if (!awake()) return `<div class="tstate">💤 竜はねむっている…<br><small>${PLAY_HOURS[0]}時〜${PLAY_HOURS[1]}時にまた来よう！</small></div><div class="row">${last}</div>`;
   if (store.save) { const v = store.save.S; return `<div class="row"><button class="btn gold" id="contBtn" style="font-size:28px;padding:12px 40px">▶ つづきから（${v.grade ? v.grade + '年' : v.extreme ? 'エクストリーム' : 'ハード'}・${v.day}日目）</button>${last}</div>`; }
-  if (playedToday()) return `<div class="tstate">🌙 今日の挑戦はおわり！<br><small>また明日、${PLAY_HOURS[0]}時〜${PLAY_HOURS[1]}時に挑戦しよう</small></div><div class="row">${last}<button class="btn gray" id="passBtn2" style="font-size:20px;padding:8px 18px">🔑 パスワード</button></div>`;
+  if (playedToday()) return `<div class="tstate">🌙 今日の挑戦はおわり！<br><small>また明日、${PLAY_HOURS[0]}時〜${PLAY_HOURS[1]}時に挑戦しよう</small></div><div class="row">${last}</div>`;
   return `<h2>学年をえらぶ <small style="font-size:16px">（今日はあと${playsLeft()}回挑戦できるよ）</small></h2>${last ? `<div class="row" style="margin:-4px 0 4px">${last}</div>` : ''}`;
 }
 function title(justUnlocked) {
@@ -643,7 +634,7 @@ function title(justUnlocked) {
     <img src="${ASSETS.logo}" alt="まなびドラゴン" class="logo" onerror="this.outerHTML='<h1 class=&quot;ol&quot;>まなびドラゴン</h1>'">
     <p style="text-align:center">勉強して竜を育て、3週間後の天使をたおせ！</p>
     ${titleState()}
-    <div class="row" ${titleMode() ? '' : 'style="display:none"'}><button class="btn" data-g="4">4年生</button><button class="btn" data-g="5">5年生</button><button class="btn" data-g="6">6年生</button><button class="btn${UNLOCK.hard ? '' : ' locked'}${justUnlocked === 'hard' || justUnlocked === 'extreme' ? ' unlocked' : ''}" data-g="0" data-lock="hard" style="background:#b91c1c">${UNLOCK.hard ? '' : '🔒'}🔥 ハード</button><button class="btn${UNLOCK.extreme ? '' : ' locked'}${justUnlocked === 'extreme' ? ' unlocked' : ''}" data-g="0" data-x="1" data-lock="extreme" style="background:linear-gradient(135deg,#4c1d95,#111)">${UNLOCK.extreme ? '' : '🔒'}💀 エクストリーム</button><button class="btn gray" id="passBtn">🔑 パスワード</button></div>
+    <div class="row" ${titleMode() ? '' : 'style="display:none"'}><button class="btn" data-g="4">4年生</button><button class="btn" data-g="5">5年生</button><button class="btn" data-g="6">6年生</button><button class="btn${UNLOCK.hard ? '' : ' locked'}${justUnlocked === 'hard' || justUnlocked === 'extreme' ? ' unlocked' : ''}" data-g="0" data-lock="hard" style="background:#b91c1c">${UNLOCK.hard ? '' : '🔒'}🔥 ハード</button><button class="btn${UNLOCK.extreme ? '' : ' locked'}${justUnlocked === 'extreme' ? ' unlocked' : ''}" data-g="0" data-x="1" data-lock="extreme" style="background:linear-gradient(135deg,#4c1d95,#111)">${UNLOCK.extreme ? '' : '🔒'}💀 エクストリーム</button></div>
     <p style="text-align:center;font-size:15px;margin-top:4px">ハード：4〜6年の全問題／与ダメ↓・被ダメ↑／スコア1.5倍　💀エクストリーム：さらにきびしい／スコア2倍</p>
     
     <div class="chips" style="margin-top:12px">${cnt}</div>
@@ -651,9 +642,13 @@ function title(justUnlocked) {
   $('#panel').style.display = 'flex'; $('#panel').classList.add('title');
   $('#panelIn').querySelectorAll('[data-g]').forEach(b => b.onclick = () => { const L = b.dataset.lock; if (L && !UNLOCK[L]) return lockNotice(LOCK_HINT[L]); confirmStart(+b.dataset.g, !!b.dataset.x); });
   if ($('#contBtn')) $('#contBtn').onclick = resumeGame;
-  if ($('#passBtn2')) $('#passBtn2').onclick = passScreen;
-  $('#passBtn').onclick = passScreen;
-  if (justUnlocked) { fxAdd('<div class="flash" style="background:#fff"></div>', 900); anim('#panelIn', 'shakeBig'); }
+  // かくしコマンド：「保健」のチップを20回おすとパスワード入力（デバッグ用）
+  { let n = 0; const c = $('#panelIn .chips .chip:last-child'); if (c) c.onclick = () => { if (++n >= 20) passScreen(); }; }
+  if (!justUnlocked && store.newUnlock) { justUnlocked = store.newUnlock; delete store.newUnlock; persist(); return title(justUnlocked); }
+  if (justUnlocked) {
+    fxAdd('<div class="flash" style="background:#fff"></div>', 900); anim('#panelIn', 'shakeBig');
+    $('#panelIn').insertAdjacentHTML('afterbegin', `<div class="unlockMsg">🔓 ${justUnlocked === 'extreme' ? 'エクストリーム' : 'ハード'}が解禁されました！</div>`);
+  }
   $('#recBtn').onclick = recordScreen;
 }
 
@@ -695,11 +690,16 @@ function tutorial() {
       <div>📝 まちがえた問題は<b>ボス戦でまた出る</b>。正解すると「苦手こくふく」でパワーアップ！</div>
       <div>👁 ボスの<b>「次のこうどう」</b>を見て、教科をえらぼう。ガード中は回復のチャンス！</div>
     </div>
-    <button class="btn gold" id="tgo" style="display:block;margin:6px auto 0;font-size:26px;padding:8px 60px">1日目へ ▶</button>
+    <div class="row" style="margin-top:6px;align-items:center"><button class="btn gray" id="tback" style="font-size:20px;padding:8px 22px">◀ もどる</button><button class="btn gold" id="tgo" style="font-size:26px;padding:8px 60px">1日目へ ▶</button></div>
+    <p style="text-align:center;font-size:14px;margin:2px 0 0">${NOLIMIT ? '' : `「1日目へ」で今日の挑戦を1回使うよ（あと${playsLeft()}回）／`}コンティニューは<b style="color:#fde047;display:inline;font-size:14px">1回だけ</b>（スコア半分）</p>
   </div>`;
   P.style.display = 'flex';
-  const go = () => { P.onclick = null; P.style.display = 'none'; goDay(1); };
-  P.onclick = null; setTimeout(() => { P.onclick = go; }, 50);
+  const go = () => {
+    P.style.display = 'none';
+    if (!NOLIMIT) { const t = today(); store.plays = { date: t, n: (store.plays && store.plays.date === t ? store.plays.n : 0) + 1 }; persist(); }
+    goDay(1);
+  };
+  P.onclick = null; $('#tgo').onclick = go; $('#tback').onclick = () => { S = null; title(); };
 }
 
 // ---------- 1日の進行 ----------
@@ -1132,7 +1132,7 @@ function armorTops() { const A = ['国語', '算数', '理科', '社会', '英�
 function armorMul(s) { const t = armorTops(); return t.includes(s) ? (t.length > 1 ? 1 / 5 : 1 / 3) : 1; }
 function continuePrompt() {
   return new Promise(res => {
-    msg(`<div>コンティニューする？</div><div class="sub">最終スコアが${CONT_SCORE * 100}%になり、ランクは${CONT_RANK_MAX}まで。パスワードももらえなくなるよ</div>`);
+    msg(`<div>コンティニューする？</div><div class="sub">コンティニューは1回の挑戦で1回だけ。最終スコアが${CONT_SCORE * 100}%になり、ランクは${CONT_RANK_MAX}まで。次の難易度も解禁されないよ</div>`);
     setChoices('c2', [
       { html: '<button class="skcard pop" style="text-align:center"><b style="color:#b45309">コンティニュー</b>HP全回復でたたかいを続ける</button>', on: () => { clearChoices(); res(true); } },
       { html: '<button class="skcard pop" style="text-align:center"><b>あきらめる</b>ここで終わりにする</button>', on: () => { clearChoices(); res(false); } },
@@ -1148,7 +1148,7 @@ async function survive() {
   }
   if (B.idx === 4) { await say(`${ASSETS.player.name}はひざをついた…`, 1200); await say(`${bName()}「${LN('kurogane').lose}」`, 0); await ending('kuroLose'); result(true); return false; }
   await say(`${ASSETS.player.name}はたおれてしまった…`, 1500);
-  if (!NOLIMIT && await continuePrompt()) {
+  if (!NOLIMIT && !S.continues && await continuePrompt()) {
     S.continues = (S.continues || 0) + 1; S.hp = S.maxHp; B.pGuard = false; B.pWeak = false;
     fxHeal('#face', S.maxHp); updateUI();
     await say(`💫 コンティニュー！ ${ASSETS.player.name}は立ち上がった！ HPが全回復した！`, 1400);
@@ -1298,7 +1298,7 @@ async function resultShow(rows, total) {
   finish();
 }
 function result(clear) {
-  clearSave(); hideSuspend();
+  S.over = true; clearSave(); hideSuspend();
   setBg(clear ? ASSETS.bg.result : ASSETS.bg.gameover, GRAD[clear ? 0 : 3]);
   clearChoices(); $('#msgbar').style.display = 'none';
   ['#bossHp', '#intent', '#cdBox'].forEach(s => $(s).style.display = 'none');
@@ -1327,9 +1327,15 @@ function result(clear) {
   if (rank === 'S') rank = score >= RANK.SSS ? 'SSS' : score >= RANK.SS ? 'SS' : 'S';
   const ORDER = ['SSS', 'SS', 'S', 'A', 'B', 'C', 'D'];
   if (S.continues && ORDER.indexOf(rank) < ORDER.indexOf(CONT_RANK_MAX)) rank = CONT_RANK_MAX;
-  const pass = !clear || S.continues ? '' : S.grade > 0 ? `<div class="rpass">🔓 パスワード <b>${PASSWORD.hard}</b><br><small>「くろい」と覚えてね！タイトル画面で入力してみよう！</small></div>`
-    : !S.extreme ? `<div class="rpass">🔓 パスワード <b>${PASSWORD.extreme}</b><br><small>「むずい」と覚えてね！タイトル画面で入力してみよう！</small></div>` : '';
-  const sNote = S.continues ? `<p class="rnote">コンティニューしたので、ランクは${CONT_RANK_MAX}まで・パスワードはもらえません</p>` : rank.startsWith('S') ? '' : `<p class="rnote">Sランクの条件：クリア・正答率${RANK.sAcc}%以上・${fmt(RANK.S * (S.grade === 0 ? DIFF().score : 1))}点以上</p>`;
+  // ノーコンティニューでクリアしたら、次の難易度を自動で解禁（タイトルにもどったときに知らせる）
+  const unlockKey = !clear || S.continues ? null : S.grade > 0 ? 'hard' : !S.extreme ? 'extreme' : null;
+  let pass = '';
+  if (unlockKey && !UNLOCK[unlockKey]) {
+    UNLOCK.hard = true; if (unlockKey === 'extreme') UNLOCK.extreme = true;
+    store.unlock = { ...UNLOCK }; store.newUnlock = unlockKey; persist();
+    pass = `<div class="rpass">🔓 ${unlockKey === 'extreme' ? 'エクストリーム' : 'ハード'}が解禁された！<br><small>タイトル画面で選べるようになったよ</small></div>`;
+  }
+  const sNote = S.continues ? `<p class="rnote">コンティニューしたので、ランクは${CONT_RANK_MAX}まで・次の難易度は解禁されません</p>` : rank.startsWith('S') ? '' : `<p class="rnote">Sランクの条件：クリア・正答率${RANK.sAcc}%以上・${fmt(RANK.S * (S.grade === 0 ? DIFF().score : 1))}点以上</p>`;
   const gname = S.grade ? S.grade + '年' : S.extreme ? 'エクストリーム' : 'ハードモード';
   const share = `【まなびドラゴン】${gname} ${S.trueWin ? '真・完全勝利！' : S.kuroWin ? '完全勝利！' : clear ? 'クリア！' : `${S.day}日目でたおれた`} スコア${fmt(score)}（ランク${rank}）正答率${acc}%${clear ? ` タイム${clock}` : ''}${S.continues ? ` コンティニュー${S.continues}回` : ''}\n${SUBJ.map(s => `${s}${eff(s)}`).join(' ')} HP${S.maxHp}${S.skills.length ? `\nアイテム：${S.skills.map(k => skLabel(k)).join('・')}` : ''}`;
   const RCOL = { SSS: '#fff7ae', SS: '#7dd3fc', S: '#ffd54a', A: '#f472b6', B: '#38bdf8', C: '#4ade80', D: '#cbd5e1' };
