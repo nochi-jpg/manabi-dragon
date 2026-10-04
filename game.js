@@ -501,7 +501,7 @@ function passScreen() {
     setTimeout(() => title(hit), 1400);
   };
 }
-// ---------- 1日1回の挑戦・遊べる時間・セーブ（ブラウザの中だけに保存） ----------
+// ---------- 1日3回の挑戦・遊べる時間・セーブ（ブラウザの中だけに保存） ----------
 const PLAY_HOURS = [8, 20];            // 8時〜20時だけ遊べる（竜がおきている時間）
 const CONT_SCORE = 0.5;                // コンティニューしたときの最終スコア倍率
 const CONT_RANK_MAX = 'C';             // コンティニューしたときのランク上限
@@ -513,7 +513,9 @@ if (NOLIMIT) Object.assign(UNLOCK, { hard: true, extreme: true });
 function persist() { if (NOLIMIT) return; try { localStorage.setItem(SKEY, JSON.stringify(store)); } catch (e) {} }
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 const awake = () => { if (NOLIMIT) return true; const h = new Date().getHours(); return h >= PLAY_HOURS[0] && h < PLAY_HOURS[1]; };
-const playedToday = () => !NOLIMIT && store.lastStart === today();
+const DAILY_PLAYS = 3;                 // 1日に挑戦できる回数（ためられない）
+const playsLeft = () => NOLIMIT ? 99 : Math.max(0, DAILY_PLAYS - (store.plays && store.plays.date === today() ? store.plays.n : 0));
+const playedToday = () => playsLeft() <= 0;
 // --- 状態を保存できる形に変える（問題・アイテムは名前で記録） ---
 const ALL_ITEMS = () => [...SKILLS, ...SKILLS_HARD, ...SKILLS_SR, ...SKILLS_LR];
 let PK = null;   // 保存中だけ使う検索用セット
@@ -613,12 +615,12 @@ function showResultSnap(L) {
 function confirmStart(grade, extreme) {
   if (NOLIMIT) return newRun(grade, extreme);
   const m = $('#modal'); m.style.display = 'flex';
-  m.innerHTML = `<div class="modalBox pop"><div style="font-size:54px;line-height:1.1">🐉</div><p style="line-height:1.6">挑戦できるのは<span style="color:#b45309;font-weight:bold;font-size:26px">1日1回</span>だけ！<br>このモードではじめる？</p>
+  m.innerHTML = `<div class="modalBox pop"><div style="font-size:54px;line-height:1.1">🐉</div><p style="line-height:1.6">今日の挑戦は、あと<span style="color:#b45309;font-weight:bold;font-size:26px">${playsLeft()}回</span>！<br>このモードではじめる？</p>
     <p style="font-size:15px;margin:0">とちゅうで「⏸中断」すると、続きはあとで遊べるよ</p>
     <div class="row" style="margin-top:12px"><button class="btn gold" id="cfYes">はじめる！</button><button class="btn gray" id="cfNo">やめる</button></div></div>`;
   m.onclick = null;
   $('#cfNo').onclick = () => { m.style.display = 'none'; };
-  $('#cfYes').onclick = () => { m.style.display = 'none'; store.lastStart = today(); persist(); newRun(grade, extreme); };
+  $('#cfYes').onclick = () => { m.style.display = 'none'; const t = today(); store.plays = { date: t, n: (store.plays && store.plays.date === t ? store.plays.n : 0) + 1 }; persist(); newRun(grade, extreme); };
 }
 // タイトルの状態：ねている／つづきから／今日はおわり／えらべる
 function titleMode() { return awake() && !store.save && !playedToday(); }
@@ -627,7 +629,7 @@ function titleState() {
   if (!awake()) return `<div class="tstate">💤 竜はねむっている…<br><small>${PLAY_HOURS[0]}時〜${PLAY_HOURS[1]}時にまた来よう！</small></div><div class="row">${last}</div>`;
   if (store.save) { const v = store.save.S; return `<div class="row"><button class="btn gold" id="contBtn" style="font-size:28px;padding:12px 40px">▶ つづきから（${v.grade ? v.grade + '年' : v.extreme ? 'エクストリーム' : 'ハード'}・${v.day}日目）</button>${last}</div>`; }
   if (playedToday()) return `<div class="tstate">🌙 今日の挑戦はおわり！<br><small>また明日、${PLAY_HOURS[0]}時〜${PLAY_HOURS[1]}時に挑戦しよう</small></div><div class="row">${last}<button class="btn gray" id="passBtn2" style="font-size:20px;padding:8px 18px">🔑 パスワード</button></div>`;
-  return `<h2>学年をえらぶ <small style="font-size:16px">（1日1回だけ挑戦できるよ）</small></h2>${last ? `<div class="row" style="margin:-4px 0 4px">${last}</div>` : ''}`;
+  return `<h2>学年をえらぶ <small style="font-size:16px">（今日はあと${playsLeft()}回挑戦できるよ）</small></h2>${last ? `<div class="row" style="margin:-4px 0 4px">${last}</div>` : ''}`;
 }
 function title(justUnlocked) {
   $('#panelIn').classList.remove('resmode');
