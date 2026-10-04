@@ -467,7 +467,7 @@ function dateCut(from, to) {
 // ---------- タイトル ----------
 // ---------- パスワードロック（セーブなし：ページを開き直すとロックにもどる） ----------
 const PASSWORD = { hard: '961', extreme: '621' };   // 961＝くろい、621＝むずい
-const UNLOCK = { hard: false, extreme: false };
+const UNLOCK = { hard: false, extreme: false };   // 解除はブラウザに保存（下の store から読みこむ）
 const LOCK_HINT = {
   hard: '🔒 ハードモードはロックされています。<br>4〜6年のどれかをクリアすると、パスワードが手に入るよ！<br>タイトル画面の「🔑 パスワード」で入力しよう。',
   extreme: '🔒 エクストリームはロックされています。<br>ハードモードをクリアすると、パスワードが手に入るよ！<br>タイトル画面の「🔑 パスワード」で入力しよう。',
@@ -495,14 +495,121 @@ function passScreen() {
     const hit = code === PASSWORD.extreme ? 'extreme' : code === PASSWORD.hard ? 'hard' : null;
     if (!hit) { pm.className = 'passmsg ng'; pm.textContent = 'にんしょうしっぱい・・・'; anim('.dial', 'shake'); return; }
     UNLOCK.hard = true; if (hit === 'extreme') UNLOCK.extreme = true;
+    store.unlock = { ...UNLOCK }; persist();
     pm.className = 'passmsg ok'; pm.textContent = hit === 'extreme' ? 'エクストリームが解除されました！' : 'ハードが解除されました！';
     $('#passOk').disabled = true;
     setTimeout(() => title(hit), 1400);
   };
 }
+// ---------- 1日1回の挑戦・遊べる時間・セーブ（ブラウザの中だけに保存） ----------
+const PLAY_HOURS = [8, 20];            // 8時〜20時だけ遊べる（竜がおきている時間）
+const CONT_SCORE = 0.5;                // コンティニューしたときの最終スコア倍率
+const CONT_RANK_MAX = 'C';             // コンティニューしたときのランク上限
+const NOLIMIT = !!window.FAST;         // 自動テスト中は制限なし・保存なし
+const SKEY = 'manabiDragon.v1';
+const store = (() => { try { return JSON.parse(localStorage.getItem(SKEY)) || {}; } catch (e) { return {}; } })();
+if (store.unlock) Object.assign(UNLOCK, store.unlock);
+if (NOLIMIT) Object.assign(UNLOCK, { hard: true, extreme: true });
+function persist() { if (NOLIMIT) return; try { localStorage.setItem(SKEY, JSON.stringify(store)); } catch (e) {} }
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+const awake = () => { if (NOLIMIT) return true; const h = new Date().getHours(); return h >= PLAY_HOURS[0] && h < PLAY_HOURS[1]; };
+const playedToday = () => !NOLIMIT && store.lastStart === today();
+// --- 状態を保存できる形に変える（問題・アイテムは名前で記録） ---
+const ALL_ITEMS = () => [...SKILLS, ...SKILLS_HARD, ...SKILLS_SR, ...SKILLS_LR];
+let PK = null;   // 保存中だけ使う検索用セット
+function pack(v) {
+  if (!PK) { PK = { q: new Set(DB), k: new Set(ALL_ITEMS()) }; try { return pack(v); } finally { PK = null; } }
+  if (v instanceof Set) return { __set: [...v].map(pack) };
+  if (Array.isArray(v)) return v.map(pack);
+  if (v && typeof v === 'object') {
+    if (PK.q.has(v)) return { __q: v.q };
+    if (PK.k.has(v)) return { __k: v.id };
+    const o = {}; for (const k in v) o[k] = pack(v[k]); return o;
+  }
+  return v;
+}
+function unpack(v) {
+  if (Array.isArray(v)) return v.map(unpack).filter(x => x !== undefined);
+  if (v && typeof v === 'object') {
+    if (v.__set) return new Set(v.__set.map(unpack));
+    if (v.__q !== undefined) return DB.find(q => q.q === v.__q);
+    if (v.__k !== undefined) return ALL_ITEMS().find(k => k.id === v.__k);
+    const o = {}; for (const k in v) o[k] = unpack(v[k]); return o;
+  }
+  return v;
+}
+function stOf(b) { return b.phase3 ? LAST3 : b.idx === 4 ? KUROGANE : S.grade === 0 ? { ...STAGES[b.idx], ...HARD_PAT[b.idx], hp: STAGES[b.idx].hp * DIFF().hp, hp2: STAGES[b.idx].hp2 && STAGES[b.idx].hp2 * DIFF().hp } : STAGES[b.idx]; }
+// where：'day'（その日の最初から）／'lesson'（教科えらび）／'battle'（バトル中）
+function saveGame(where) {
+  if (NOLIMIT || !S) return;
+  const st = { ...S, t0: undefined, elapsed: S.t0 ? Date.now() - S.t0 : 0 };
+  const b = B ? { ...B, st: undefined } : null;
+  store.save = { where, S: pack(st), B: pack(b), at: Date.now() };
+  persist();
+}
+function clearSave() { delete store.save; persist(); }
+// 遊べる時間がおわったら、その場で中断してタイトルへ
+async function sleepCheck() {
+  if (awake()) return false;
+  clearChoices(); hideSuspend();
+  await say(`${ASSETS.master.name}「竜がねむくなってきたようだ…。つづきは明日の${PLAY_HOURS[0]}時から${PLAY_HOURS[1]}時のあいだにしよう。」`, 0);
+  title(); return true;
+}
+function showSuspend() { if (!NOLIMIT) $('#suspendBtn').style.display = 'block'; }
+function hideSuspend() { $('#suspendBtn').style.display = 'none'; }
+function suspendGame() {
+  hideSuspend(); clearChoices();
+  title(); toast('中断しました。「つづきから」で再開できます');
+}
+async function resumeGame() {
+  const sv = store.save; if (!sv) return title();
+  $('#panel').style.display = 'none'; $('#panel').classList.remove('title');
+  S = unpack(sv.S); S.t0 = Date.now() - (S.elapsed || 0);
+  B = sv.B ? unpack(sv.B) : null; if (B) B.st = stOf(B);
+  $('#msgbar').style.display = 'flex';
+  if (sv.where === 'battle' && B) {
+    const bg = B.phase3 ? '' : B.idx === 4 ? ASSETS.bg.result : B.idx === 3 ? (B.phase2 ? ASSETS.bg.last2 : ASSETS.bg.last) : ASSETS.bg.battle[B.idx];
+    setBg(bg, B.phase3 ? 'linear-gradient(#fff,#fff)' : GRAD[B.idx === 4 ? 0 : B.idx]);
+    $('#bossHp').style.display = 'block'; $('#intent').style.display = 'block';
+    drawBoss(); renderSide(B.idx === 4 ? '最後の<br>試練' : B.idx === 3 ? 'ファイナル<br>バトル' : '教科ボス<br>バトル'); renderInfo(); updateUI();
+    await say('▶ つづきから再開！', 900);
+    if (S.pendQ) return doTurn(S.pendQ.s);
+    return showCmd();
+  }
+  if (sv.where === 'lesson') { await say('▶ つづきから再開！', 900); if (S.pendQ) { lessonScene('教科強化<br>フェーズ'); return lesson(S.pendQ.s); } return lessonDay(); }
+  await say('▶ つづきから再開！', 900);
+  dayBody(S.day);
+}
+// 前回の結果（その日の挑戦が終わったあとに見られる）
+function showLastResult() {
+  const L = store.lastResult; if (!L) return;
+  $('#panelIn').classList.add('resmode'); $('#panelIn').innerHTML = L.html;
+  $('#panel').classList.remove('title'); $('#panel').onclick = null;
+  $('#again').onclick = () => title();
+  $('#copy').onclick = () => { navigator.clipboard ? navigator.clipboard.writeText(L.share).then(() => toast('コピーしました'), () => prompt('コピーしてね', L.share)) : prompt('コピーしてね', L.share); };
+}
+function confirmStart(grade, extreme) {
+  if (NOLIMIT) return newRun(grade, extreme);
+  const m = $('#modal'); m.style.display = 'flex';
+  m.innerHTML = `<div class="modalBox pop"><div style="font-size:54px;line-height:1.1">🐉</div><p style="line-height:1.6">挑戦できるのは<span style="color:#b45309;font-weight:bold;font-size:26px">1日1回</span>だけ！<br>このモードではじめる？</p>
+    <p style="font-size:15px;margin:0">とちゅうで「⏸中断」すると、続きはあとで遊べるよ</p>
+    <div class="row" style="margin-top:12px"><button class="btn gold" id="cfYes">はじめる！</button><button class="btn gray" id="cfNo">やめる</button></div></div>`;
+  m.onclick = null;
+  $('#cfNo').onclick = () => { m.style.display = 'none'; };
+  $('#cfYes').onclick = () => { m.style.display = 'none'; store.lastStart = today(); persist(); newRun(grade, extreme); };
+}
+// タイトルの状態：ねている／つづきから／今日はおわり／えらべる
+function titleMode() { return awake() && !store.save && !playedToday(); }
+function titleState() {
+  const last = store.lastResult ? '<button class="btn gray" id="lastBtn" style="font-size:20px;padding:8px 18px">📜 前回の記録</button>' : '';
+  if (!awake()) return `<div class="tstate">💤 竜はねむっている…<br><small>${PLAY_HOURS[0]}時〜${PLAY_HOURS[1]}時にまた来よう！</small></div><div class="row">${last}</div>`;
+  if (store.save) { const v = store.save.S; return `<div class="row"><button class="btn gold" id="contBtn" style="font-size:28px;padding:12px 40px">▶ つづきから（${v.grade ? v.grade + '年' : v.extreme ? 'エクストリーム' : 'ハード'}・${v.day}日目）</button>${last}</div>`; }
+  if (playedToday()) return `<div class="tstate">🌙 今日の挑戦はおわり！<br><small>また明日、${PLAY_HOURS[0]}時〜${PLAY_HOURS[1]}時に挑戦しよう</small></div><div class="row">${last}<button class="btn gray" id="passBtn2" style="font-size:20px;padding:8px 18px">🔑 パスワード</button></div>`;
+  return `<h2>学年をえらぶ <small style="font-size:16px">（1日1回だけ挑戦できるよ）</small></h2>${last ? `<div class="row" style="margin:-4px 0 4px">${last}</div>` : ''}`;
+}
 function title(justUnlocked) {
   $('#panelIn').classList.remove('resmode');
-  S = null; B = null;
+  S = null; B = null; hideSuspend();
   setBg(ASSETS.bg.title, GRAD[0]);
   ['#side', '#info', '#bossHp', '#intent', '#cdBox'].forEach(s => $(s).style.display = 'none');
   setChara(''); clearChoices(); msg('');
@@ -511,15 +618,18 @@ function title(justUnlocked) {
   $('#panelIn').innerHTML = `
     <img src="${ASSETS.logo}" alt="まなびドラゴン" class="logo" onerror="this.outerHTML='<h1 class=&quot;ol&quot;>まなびドラゴン</h1>'">
     <p style="text-align:center">勉強して竜を育て、3週間後の天使をたおせ！</p>
-    <h2>学年をえらぶ</h2>
-    <div class="row"><button class="btn" data-g="4">4年生</button><button class="btn" data-g="5">5年生</button><button class="btn" data-g="6">6年生</button><button class="btn${UNLOCK.hard ? '' : ' locked'}${justUnlocked === 'hard' || justUnlocked === 'extreme' ? ' unlocked' : ''}" data-g="0" data-lock="hard" style="background:#b91c1c">${UNLOCK.hard ? '' : '🔒'}🔥 ハード</button><button class="btn${UNLOCK.extreme ? '' : ' locked'}${justUnlocked === 'extreme' ? ' unlocked' : ''}" data-g="0" data-x="1" data-lock="extreme" style="background:linear-gradient(135deg,#4c1d95,#111)">${UNLOCK.extreme ? '' : '🔒'}💀 エクストリーム</button><button class="btn gray" id="passBtn">🔑 パスワード</button></div>
+    ${titleState()}
+    <div class="row" ${titleMode() ? '' : 'style="display:none"'}><button class="btn" data-g="4">4年生</button><button class="btn" data-g="5">5年生</button><button class="btn" data-g="6">6年生</button><button class="btn${UNLOCK.hard ? '' : ' locked'}${justUnlocked === 'hard' || justUnlocked === 'extreme' ? ' unlocked' : ''}" data-g="0" data-lock="hard" style="background:#b91c1c">${UNLOCK.hard ? '' : '🔒'}🔥 ハード</button><button class="btn${UNLOCK.extreme ? '' : ' locked'}${justUnlocked === 'extreme' ? ' unlocked' : ''}" data-g="0" data-x="1" data-lock="extreme" style="background:linear-gradient(135deg,#4c1d95,#111)">${UNLOCK.extreme ? '' : '🔒'}💀 エクストリーム</button><button class="btn gray" id="passBtn">🔑 パスワード</button></div>
     <p style="text-align:center;font-size:15px;margin-top:4px">ハード：4〜6年の全問題／与ダメ↓・被ダメ↑／スコア1.5倍　💀エクストリーム：さらにきびしい／スコア2倍</p>
     
     <div class="chips" style="margin-top:12px">${cnt}</div>
     <div class="row" style="align-items:center;font-size:17px"><label><input type="checkbox" id="append"> いまの問題に追加</label><button class="btn gray" id="csvBtn" style="font-size:18px;padding:8px 16px">📂 問題CSVを読みこむ</button></div>
     <input type="file" id="csv" accept=".csv,text/csv" hidden>`;
   $('#panel').style.display = 'flex'; $('#panel').classList.add('title');
-  $('#panelIn').querySelectorAll('[data-g]').forEach(b => b.onclick = () => { const L = b.dataset.lock; if (L && !UNLOCK[L]) return lockNotice(LOCK_HINT[L]); newRun(+b.dataset.g, !!b.dataset.x); });
+  $('#panelIn').querySelectorAll('[data-g]').forEach(b => b.onclick = () => { const L = b.dataset.lock; if (L && !UNLOCK[L]) return lockNotice(LOCK_HINT[L]); confirmStart(+b.dataset.g, !!b.dataset.x); });
+  if ($('#contBtn')) $('#contBtn').onclick = resumeGame;
+  if ($('#lastBtn')) $('#lastBtn').onclick = showLastResult;
+  if ($('#passBtn2')) $('#passBtn2').onclick = passScreen;
   $('#passBtn').onclick = passScreen;
   if (justUnlocked) { fxAdd('<div class="flash" style="background:#fff"></div>', 900); anim('#panelIn', 'shakeBig'); }
   $('#csvBtn').onclick = () => $('#csv').click();
@@ -586,10 +696,16 @@ async function goDay(d) {
   if (dowOf(d) === 0 && d < FINAL_DAY) S.weekSeen = [];
   await dateCut(from, d);
   $('#msgbar').style.display = 'flex';
+  S.pendQ = null; saveGame('day');
+  if (await sleepCheck()) return;
+  dayBody(d);
+}
+async function dayBody(d) {
+  $('#msgbar').style.display = 'flex';
   if (d === FINAL_DAY) return finalDay();
   if (dowOf(d) === 6) return battleStart();
   if (dowOf(d) === 5) return saturday();
-  if (dowOf(d) === 2) { lessonScene('ランダム<br>イベント'); await wedEvent(); }
+  if (dowOf(d) === 2 && S.wedDone !== d) { S.wedDone = d; saveGame('day'); lessonScene('ランダム<br>イベント'); await wedEvent(); }
   lessonDay();
 }
 const dim = on => $('#dim').classList.toggle('on', on);
@@ -667,17 +783,22 @@ async function lessonDay() {
   }
   const good = strongAgainst(S.bossEl);
   msg(`${ASSETS.master.name}「今日はどの教科を勉強する？」`);
+  S.pendQ = null; saveGame('lesson'); showSuspend();
   setChoices('c3', SUBJ.map(s => {
     const tag = s === good ? 'ボスに2倍' : s === '保健' ? 'HP最大値UP' : s === '英語' ? 'いつでも等倍' : '';
     return { html: `<button class="sbtn pop" style="background:${BTNC[s]}">${ICON[s]} ${s}<small>${eff(s)}</small>${tag ? `<span class="tag">${tag}</span>` : ''}</button>`, on: () => lesson(s) };
   }));
 }
 async function lesson(s) {
-  const q = drawLessonQ(s);
+  hideSuspend();
+  const P = S.pendQ && S.pendQ.kind === 'lesson' && S.pendQ.q ? S.pendQ : null;   // 再開：同じ問題・同じ答えのまま続ける
+  const q = P ? P.q : drawLessonQ(s);
+  S.pendQ = P || { kind: 'lesson', s, q }; saveGame('lesson');
   if (!S.weekSeen.includes(q)) S.weekSeen.push(q);
   if (!S.allSeen.includes(q)) S.allSeen.push(q);
   const tierBefore = plTier(), topBefore = plTop();
-  const r = await ask(q, { head: `${ICON[s]} ${s}レッスン` });
+  const r = S.pendQ.r || await ask(q, { head: `${ICON[s]} ${s}レッスン` });
+  S.pendQ.r = r; saveGame('lesson');
   S.total++;
   let gain;
   if (r.ok) { S.correct++; gain = (500 + rnd(301) + (has('scholar') ? 200 : 0)) * (has('h_ougi') ? 1.8 : 1) * (has('sr_helm') ? 2 : 1); }
@@ -702,10 +823,11 @@ function saturday() {
   setChara(imgArt([R.img], R.emoji));
   const hello = weekOf(S.day) === 2 ? R.lines.helloLast : pick(R.lines.hello);
   msg(`<div>${R.name}「${hello}」</div><div class="sub">ひとつえらんでね（無料！）</div>`);
-  const ch = weekOf(S.day) === 2 ? ruriLastChoices() : skillChoices(3);
+  if (!S.shop || S.shop.day !== S.day) { S.shop = { day: S.day, ch: weekOf(S.day) === 2 ? ruriLastChoices() : skillChoices(3) }; saveGame('day'); }
+  const ch = S.shop.ch; showSuspend();
   setChoices('c3', ch.map(k => ({
     html: `<button class="skcard pop${rCls(k)}"><span class="skic">${skIcon(k)}</span>${skTitle(k)}${k.desc}</button>`,
-    on: async () => { clearChoices(); await gainItem(k, 'ルリからもらった'); await say(`${ASSETS.merchant.name}「${pick(ASSETS.merchant.lines.thanks)}」`, 0); goDay(S.day + 1); },
+    on: async () => { clearChoices(); hideSuspend(); await gainItem(k, 'ルリからもらった'); await say(`${ASSETS.merchant.name}「${pick(ASSETS.merchant.lines.thanks)}」`, 0); goDay(S.day + 1); },
   })));
 }
 async function finalDay() {
@@ -796,6 +918,9 @@ function tagFor(s) {
   return m === 2 ? 'ばつぐん×2' : m === 0.5 ? 'いまひとつ×½' : '×1';
 }
 function showCmd() {
+  S.pendQ = null; saveGame('battle');
+  if (!awake()) { sleepCheck(); return; }
+  showSuspend();
   const it = B.intent.type;
   msg(it === 'guard' ? '🛡 ボスはガード中！攻撃はほぼ効かない。回復のチャンス'
     : it === 'big' ? '💥 大ダメージが来る！保健でガードすると半分'
@@ -855,14 +980,18 @@ function fxHeal(sel, h) { const p = sel === '#chara' ? bossPoint() : center(sel)
 
 // ----- 1ターン -----
 async function doTurn(s) {
+  hideSuspend();
   const it = B.intent;
-  const q = drawBattleQ(s);
+  const P = S.pendQ && S.pendQ.kind === 'battle' && S.pendQ.q ? S.pendQ : null;   // 再開：同じ問題・同じ答えのまま続ける
+  const q = P ? P.q : drawBattleQ(s);
   const wasWrong = S.wrong.includes(q);
   B.sealed = false;
-  const r = await ask(q, {
+  S.pendQ = P || { kind: 'battle', s, q }; saveGame('battle');
+  const r = S.pendQ.r || await ask(q, {
     head: `${ICON[s]} ${s}で${s === '保健' ? '回復' : 'こうげき'}！${wasWrong ? '　<span style="color:#fde047">★前に間違えた問題</span>' : ''}`,
     limit: has('lr_hermes') ? 4 : has('sr_idaten') ? 6 : it.type === 'haste' || has('h_godboots') ? 8 : 0, quick: has('quick'), auto2: has('h_sage'), auto1: has('sr_glasses') && Math.random() < 0.3,
   });
+  S.pendQ.r = r; saveGame('battle');
   S.total++;
   if (!r.ok) await say(explainHTML(q, r.timeout ? '⏱ 時間切れ！' : '❌ ざんねん…'), 0);
   clearChoices();
@@ -986,6 +1115,15 @@ async function doTurn(s) {
 // せいなるよろい：攻撃教科（国算理社英）の中で一番高いステータス
 function armorTops() { const A = ['国語', '算数', '理科', '社会', '英語'], mx = Math.max(...A.map(eff)); return A.filter(x => eff(x) === mx); }
 function armorMul(s) { const t = armorTops(); return t.includes(s) ? (t.length > 1 ? 1 / 5 : 1 / 3) : 1; }
+function continuePrompt() {
+  return new Promise(res => {
+    msg(`<div>コンティニューする？</div><div class="sub">最終スコアが${CONT_SCORE * 100}%になり、ランクは${CONT_RANK_MAX}まで。パスワードももらえなくなるよ</div>`);
+    setChoices('c2', [
+      { html: '<button class="skcard pop" style="text-align:center"><b style="color:#b45309">コンティニュー</b>HP全回復でたたかいを続ける</button>', on: () => { clearChoices(); res(true); } },
+      { html: '<button class="skcard pop" style="text-align:center"><b>あきらめる</b>ここで終わりにする</button>', on: () => { clearChoices(); res(false); } },
+    ]);
+  });
+}
 async function survive() {
   if (has('revive') && !S.reviveUsed) { S.reviveUsed = true; S.hp = Math.ceil(S.maxHp / 2); fxHeal('#face', S.hp); updateUI(); await say('🪶 不死鳥の羽でふっかつした！'); return true; }
   for (const [id, hp, nm] of [['lr_phoenix', 100, '不死鳥のはく製'], ['sr_blood', 50, '不死鳥の血'], ['h_tail', 1, '不死鳥の尾羽']]) {
@@ -994,7 +1132,14 @@ async function survive() {
     await say(`🪶 ${nm}が燃え上がった！ HP${S.hp}で踏みとどまった！（全ステータス×0.8）`, 1600); return true;
   }
   if (B.idx === 4) { await say(`${ASSETS.player.name}はひざをついた…`, 1200); await say(`${bName()}「${LN('kurogane').lose}」`, 0); await ending('kuroLose'); result(true); return false; }
-  await say(`${ASSETS.player.name}はたおれてしまった…`, 1500); result(false); return false;
+  await say(`${ASSETS.player.name}はたおれてしまった…`, 1500);
+  if (!NOLIMIT && await continuePrompt()) {
+    S.continues = (S.continues || 0) + 1; S.hp = S.maxHp; B.pGuard = false; B.pWeak = false;
+    fxHeal('#face', S.maxHp); updateUI();
+    await say(`💫 コンティニュー！ ${ASSETS.player.name}は立ち上がった！ HPが全回復した！`, 1400);
+    return true;
+  }
+  result(false); return false;
 }
 async function hitP(raw, label, noWeak, pure) {
   let d = raw * (S.grade === 0 && !pure ? DIFF().hurt : 1); if (B.pGuard) d *= 0.5; if (has('shield')) d *= 0.7; if (has('h_bigshield')) d *= 0.5; if (has('sr_aegis')) d *= 0.35; if (B.pWeak && !noWeak && !pure) d *= 1.3;
@@ -1138,6 +1283,7 @@ async function resultShow(rows, total) {
   finish();
 }
 function result(clear) {
+  clearSave(); hideSuspend();
   setBg(clear ? ASSETS.bg.result : ASSETS.bg.gameover, GRAD[clear ? 0 : 3]);
   clearChoices(); $('#msgbar').style.display = 'none';
   ['#bossHp', '#intent', '#cdBox'].forEach(s => $(s).style.display = 'none');
@@ -1157,17 +1303,20 @@ function result(clear) {
   const clock = `${Math.floor(sec / 60)}分${String(sec % 60).padStart(2, '0')}秒`;
   if (clear) rows.push([`クリアタイム ${clock}`, Math.max(0, TIME_BONUS_SEC - sec)]);
   if (S.grade === 0) rows.push([`${S.extreme ? 'エクストリーム' : 'ハードモード'}ボーナス ×${DIFF().score}`, Math.round(rows.reduce((a, r) => a + r[1], 0) * (DIFF().score - 1))]);
+  if (S.continues) rows.push([`コンティニュー ${S.continues}回 ×${CONT_SCORE}`, -Math.round(rows.reduce((a, r) => a + r[1], 0) * (1 - CONT_SCORE))]);
   const score = rows.reduce((a, r) => a + r[1], 0);
   const base = score / (S.grade === 0 ? DIFF().score : 1);
   let rank = base >= RANK.S ? 'S' : base >= RANK.A ? 'A' : base >= RANK.B ? 'B' : base >= RANK.C ? 'C' : 'D';
   if (rank === 'S' && !(clear && acc >= RANK.sAcc)) rank = 'A';
   if (!clear && (rank === 'S' || rank === 'A')) rank = 'B';
   if (rank === 'S') rank = score >= RANK.SSS ? 'SSS' : score >= RANK.SS ? 'SS' : 'S';
-  const pass = !clear ? '' : S.grade > 0 ? `<div class="rpass">🔓 パスワード <b>${PASSWORD.hard}</b><br><small>「くろい」と覚えてね！タイトル画面で入力してみよう！</small></div>`
+  const ORDER = ['SSS', 'SS', 'S', 'A', 'B', 'C', 'D'];
+  if (S.continues && ORDER.indexOf(rank) < ORDER.indexOf(CONT_RANK_MAX)) rank = CONT_RANK_MAX;
+  const pass = !clear || S.continues ? '' : S.grade > 0 ? `<div class="rpass">🔓 パスワード <b>${PASSWORD.hard}</b><br><small>「くろい」と覚えてね！タイトル画面で入力してみよう！</small></div>`
     : !S.extreme ? `<div class="rpass">🔓 パスワード <b>${PASSWORD.extreme}</b><br><small>「むずい」と覚えてね！タイトル画面で入力してみよう！</small></div>` : '';
-  const sNote = rank.startsWith('S') ? '' : `<p class="rnote">Sランクの条件：クリア・正答率${RANK.sAcc}%以上・${fmt(RANK.S * (S.grade === 0 ? DIFF().score : 1))}点以上</p>`;
+  const sNote = S.continues ? `<p class="rnote">コンティニューしたので、ランクは${CONT_RANK_MAX}まで・パスワードはもらえません</p>` : rank.startsWith('S') ? '' : `<p class="rnote">Sランクの条件：クリア・正答率${RANK.sAcc}%以上・${fmt(RANK.S * (S.grade === 0 ? DIFF().score : 1))}点以上</p>`;
   const gname = S.grade ? S.grade + '年' : S.extreme ? 'エクストリーム' : 'ハードモード';
-  const share = `【まなびドラゴン】${gname} ${S.trueWin ? '真・完全勝利！' : S.kuroWin ? '完全勝利！' : clear ? 'クリア！' : `${S.day}日目でたおれた`} スコア${fmt(score)}（ランク${rank}）正答率${acc}%${clear ? ` タイム${clock}` : ''}\n${SUBJ.map(s => `${s}${eff(s)}`).join(' ')} HP${S.maxHp}${S.skills.length ? `\nアイテム：${S.skills.map(k => skLabel(k)).join('・')}` : ''}`;
+  const share = `【まなびドラゴン】${gname} ${S.trueWin ? '真・完全勝利！' : S.kuroWin ? '完全勝利！' : clear ? 'クリア！' : `${S.day}日目でたおれた`} スコア${fmt(score)}（ランク${rank}）正答率${acc}%${clear ? ` タイム${clock}` : ''}${S.continues ? ` コンティニュー${S.continues}回` : ''}\n${SUBJ.map(s => `${s}${eff(s)}`).join(' ')} HP${S.maxHp}${S.skills.length ? `\nアイテム：${S.skills.map(k => skLabel(k)).join('・')}` : ''}`;
   const RCOL = { SSS: '#fff7ae', SS: '#7dd3fc', S: '#ffd54a', A: '#f472b6', B: '#38bdf8', C: '#4ade80', D: '#cbd5e1' };
   const W = S.wrong, PER = 5, pages = Math.max(1, Math.ceil(W.length / PER));
   $('#panelIn').classList.add('resmode');
@@ -1183,7 +1332,7 @@ function result(clear) {
         <div id="rScore" class="rscore">0</div>
         <div id="rRank" class="rrank r-${rank}" style="color:${RCOL[rank]}">${rank}</div>
         <div class="rfade">${pass}${sNote}
-          <div class="rbtns"><button class="btn gold" id="again">もういちど</button><button class="btn gray" id="copy">結果をコピー</button></div></div>
+          <div class="rbtns"><button class="btn gold" id="again">タイトルへ</button><button class="btn gray" id="copy">結果をコピー</button></div></div>
       </div>
       <div class="rright">
         <div class="rlist">${rows.map(r => `<div class="rrow"><span>${r[0]}</span><b>${fmt(r[1])}</b></div>`).join('')}</div>
@@ -1202,6 +1351,13 @@ function result(clear) {
     if (pages > 1) $('#rPage').textContent = `${page + 1} / ${pages}`;
   };
   showPage();
+  // 前回の記録として保存（アニメーションなしの完成形）
+  { const t = document.createElement('div'); t.innerHTML = $('#panelIn').innerHTML;
+    t.querySelectorAll('.rrow').forEach(e => e.classList.add('on')); t.querySelector('#rRank').classList.add('on');
+    t.querySelectorAll('.rfade').forEach(e => e.style.opacity = 1); t.querySelector('#rScore').textContent = fmt(score);
+    t.querySelectorAll('.rskip,.rpager').forEach(e => e.remove());
+    store.lastResult = { share, html: t.innerHTML }; }
+  persist();
   if (pages > 1) {
     $('#rPrev').onclick = e => { e.stopPropagation(); page = (page + pages - 1) % pages; showPage(); };
     $('#rNext').onclick = e => { e.stopPropagation(); page = (page + 1) % pages; showPage(); };

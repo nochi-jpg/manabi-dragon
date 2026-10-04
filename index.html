@@ -306,6 +306,11 @@ table{width:100%;font-size:20px;border-collapse:collapse}td{padding:3px}td:last-
 .rstat{display:grid;grid-template-columns:auto auto auto auto;gap:0 8px;font-size:15px;line-height:1.35;text-align:left;background:rgba(0,0,0,.35);border-radius:10px;padding:5px 10px}
 .rstat b{text-align:right;color:#fff;font-weight:normal}
 .ritems{grid-column:1/-1;font-size:18px;letter-spacing:2px;text-align:center;margin-top:2px}
+
+/* ---- 中断ボタン・タイトルの状態表示 ---- */
+#suspendBtn{position:absolute;right:12px;bottom:8px;z-index:9;font-size:16px;padding:5px 14px;border:3px solid #111;border-radius:14px;background:#e2e8f0;color:#111;cursor:pointer;display:none;box-shadow:0 4px 0 #111}
+.tstate{text-align:center;font-size:30px;line-height:1.4;margin:6px 0 10px;text-shadow:0 2px 0 #000}
+.tstate small{font-size:18px}
 </style>
 </head>
 <body>
@@ -329,6 +334,7 @@ table{width:100%;font-size:20px;border-collapse:collapse}td{padding:3px}td:last-
   <div id="cdBox"><div class="n" id="cdN"></div><div class="ol" style="font-size:15px">ブレイクまで</div><div class="g"><i id="brkBar"></i></div></div>
   <div id="choices"></div>
   <button id="halfBtn"></button>
+  <button id="suspendBtn" onclick="suspendGame()">⏸ 中断</button>
   <div id="msgbar" class="ol"></div>
   <div id="fx"></div>
   <div id="panel"><div class="in" id="panelIn"></div></div>
