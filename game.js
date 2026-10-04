@@ -98,11 +98,13 @@ function goFullscreen() {
 }
 document.addEventListener('pointerdown', goFullscreen, { once: false });
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 2200); }
-window.imgFb = el => { const r = el.dataset.fb ? el.dataset.fb.split('|') : []; if (r.length) { el.src = r.shift(); el.dataset.fb = r.join('|'); } else { el.parentElement.classList.add('noimg'); el.remove(); } };
+// 1ファイル版では画像を埋めこみデータ（window.__IMG）から読む
+const R = p => (window.__IMG && window.__IMG[p]) || p;
+window.imgFb = el => { const r = el.dataset.fb ? el.dataset.fb.split('|') : []; if (r.length) { el.src = R(r.shift()); el.dataset.fb = r.join('|'); } else { el.parentElement.classList.add('noimg'); el.remove(); } };
 function imgArt(list, emoji, cls = '', style = '') {
-  return `<div class="art ${cls}" style="${style}"><img src="${list[0]}" data-fb="${list.slice(1).join('|')}" onerror="imgFb(this)" onload="this.nextElementSibling.style.display='none'" alt=""><span class="emo">${emoji}</span></div>`;
+  return `<div class="art ${cls}" style="${style}"><img src="${R(list[0])}" data-fb="${list.slice(1).join('|')}" onerror="imgFb(this)" onload="this.nextElementSibling.style.display='none'" alt=""><span class="emo">${emoji}</span></div>`;
 }
-function setBg(img, grad) { stage.style.backgroundImage = `url("${img}"), ${grad}`; }
+function setBg(img, grad) { stage.style.backgroundImage = `url("${R(img)}"), ${grad}`; }
 function strongAgainst(def) { const j = EL.indexOf(def); return j < 0 ? null : EL[(j + 1) % 4]; }
 function mult(atk, def) {
   if (atk === '英語') return 1;
@@ -631,7 +633,7 @@ function title(justUnlocked) {
   $('#msgbar').style.display = 'none';
   const cnt = SUBJ.map(s => `<span class="chip" style="background:${BTNC[s]}">${s} ${DB.filter(q => q.s === s).length}</span>`).join('');
   $('#panelIn').innerHTML = `
-    <img src="${ASSETS.logo}" alt="まなびドラゴン" class="logo" onerror="this.outerHTML='<h1 class=&quot;ol&quot;>まなびドラゴン</h1>'">
+    <img src="${R(ASSETS.logo)}" alt="まなびドラゴン" class="logo" onerror="this.outerHTML='<h1 class=&quot;ol&quot;>まなびドラゴン</h1>'">
     <p style="text-align:center">勉強して竜を育て、3週間後の天使をたおせ！</p>
     ${titleState()}
     <div class="row" ${titleMode() ? '' : 'style="display:none"'}><button class="btn" data-g="4">4年生</button><button class="btn" data-g="5">5年生</button><button class="btn" data-g="6">6年生</button><button class="btn${UNLOCK.hard ? '' : ' locked'}${justUnlocked === 'hard' || justUnlocked === 'extreme' ? ' unlocked' : ''}" data-g="0" data-lock="hard" style="background:#b91c1c">${UNLOCK.hard ? '' : '🔒'}🔥 ハード</button><button class="btn${UNLOCK.extreme ? '' : ' locked'}${justUnlocked === 'extreme' ? ' unlocked' : ''}" data-g="0" data-x="1" data-lock="extreme" style="background:linear-gradient(135deg,#4c1d95,#111)">${UNLOCK.extreme ? '' : '🔒'}💀 エクストリーム</button></div>
@@ -691,7 +693,7 @@ function tutorial() {
       <div>👁 ボスの<b>「次のこうどう」</b>を見て、教科をえらぼう。ガード中は回復のチャンス！</div>
     </div>
     <div class="row" style="margin-top:6px;align-items:center"><button class="btn gray" id="tback" style="font-size:20px;padding:8px 22px">◀ もどる</button><button class="btn gold" id="tgo" style="font-size:26px;padding:8px 60px">1日目へ ▶</button></div>
-    <p style="text-align:center;font-size:14px;margin:2px 0 0">${NOLIMIT ? '' : `「1日目へ」で今日の挑戦を1回使うよ（あと${playsLeft()}回）／`}コンティニューは<b style="color:#fde047;display:inline;font-size:14px">1回だけ</b>（スコア半分）</p>
+    <p style="text-align:center;font-size:14px;margin:2px 0 0">${NOLIMIT ? '' : `「1日目へ」で今日の挑戦を1回使うよ（あと${playsLeft()}回）／`}コンティニューは<b style="color:#fde047;display:inline;font-size:14px">1回だけ</b>（挑戦を1回使う・スコア半分）</p>
   </div>`;
   P.style.display = 'flex';
   const go = () => {
@@ -1132,7 +1134,7 @@ function armorTops() { const A = ['国語', '算数', '理科', '社会', '英�
 function armorMul(s) { const t = armorTops(); return t.includes(s) ? (t.length > 1 ? 1 / 5 : 1 / 3) : 1; }
 function continuePrompt() {
   return new Promise(res => {
-    msg(`<div>コンティニューする？</div><div class="sub">コンティニューは1回の挑戦で1回だけ。最終スコアが${CONT_SCORE * 100}%になり、ランクは${CONT_RANK_MAX}まで。次の難易度も解禁されないよ</div>`);
+    msg(`<div>コンティニューする？</div><div class="sub">コンティニューすると<b style="color:#fca5a5">今日の挑戦を1回使う</b>よ（今日はあと${playsLeft()}回→${playsLeft() - 1}回）。1回の挑戦で1回だけ・最終スコアは${CONT_SCORE * 100}%・ランクは${CONT_RANK_MAX}まで・次の難易度は解禁されない</div>`);
     setChoices('c2', [
       { html: '<button class="skcard pop" style="text-align:center"><b style="color:#b45309">コンティニュー</b>HP全回復でたたかいを続ける</button>', on: () => { clearChoices(); res(true); } },
       { html: '<button class="skcard pop" style="text-align:center"><b>あきらめる</b>ここで終わりにする</button>', on: () => { clearChoices(); res(false); } },
@@ -1148,7 +1150,8 @@ async function survive() {
   }
   if (B.idx === 4) { await say(`${ASSETS.player.name}はひざをついた…`, 1200); await say(`${bName()}「${LN('kurogane').lose}」`, 0); await ending('kuroLose'); result(true); return false; }
   await say(`${ASSETS.player.name}はたおれてしまった…`, 1500);
-  if (!NOLIMIT && !S.continues && await continuePrompt()) {
+  if (!NOLIMIT && !S.continues && playsLeft() > 0 && await continuePrompt()) {
+    const t = today(); store.plays = { date: t, n: (store.plays && store.plays.date === t ? store.plays.n : 0) + 1 }; persist();
     S.continues = (S.continues || 0) + 1; S.hp = S.maxHp; B.pGuard = false; B.pWeak = false;
     fxHeal('#face', S.maxHp); updateUI();
     await say(`💫 コンティニュー！ ${ASSETS.player.name}は立ち上がった！ HPが全回復した！`, 1400);
@@ -1399,6 +1402,6 @@ function result(clear) {
   const P = A.player, keys = Object.values(A.romaji).concat('base');
   for (const k of keys) for (let t = 0; t < 3; t++) list.push(`${P.dir}${k}_${t}.png`);
   list.push(P.ultimate);
-  window.__pre = [...new Set(list.filter(Boolean))].map(src => { const i = new Image(); i.src = src; return i; });
+  window.__pre = [...new Set(list.filter(p => p && (!window.__IMG || window.__IMG[p])))].map(src => { const i = new Image(); i.src = R(src); return i; });
 })();
 title();
