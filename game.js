@@ -588,6 +588,28 @@ function showLastResult() {
   $('#again').onclick = () => title();
   $('#copy').onclick = () => { navigator.clipboard ? navigator.clipboard.writeText(L.share).then(() => toast('コピーしました'), () => prompt('コピーしてね', L.share)) : prompt('コピーしてね', L.share); };
 }
+// ---------- 冒険の記録（モードごとのハイスコア＋前回の記録） ----------
+const MODES = [['4', '4年生'], ['5', '5年生'], ['6', '6年生'], ['hard', '🔥 ハード'], ['extreme', '💀 エクストリーム']];
+const modeOf = () => S.grade ? String(S.grade) : S.extreme ? 'extreme' : 'hard';
+function recordScreen() {
+  const best = store.best || {}, RC = { SSS: '#fff7ae', SS: '#7dd3fc', S: '#ffd54a', A: '#f472b6', B: '#38bdf8', C: '#4ade80', D: '#cbd5e1' };
+  $('#panel').classList.remove('title'); $('#panel').onclick = null; $('#panelIn').classList.remove('resmode');
+  $('#panelIn').innerHTML = `<h2 class="ol" style="font-size:32px;margin:0 0 8px">📜 冒険の記録</h2>
+    <table class="rectbl"><tr><th>モード</th><th>ハイスコア</th><th>ランク</th><th>けっか</th><th>日付</th><th></th></tr>
+    ${MODES.map(([k, n]) => { const r = best[k]; return r ? `<tr><td>${n}</td><td class="num">${fmt(r.score)}</td><td><b style="color:${RC[r.rank]}">${r.rank}</b></td><td>${r.label}</td><td>${r.date}</td><td><button class="btn gray recv" data-k="${k}">見る</button></td></tr>`
+      : `<tr class="none"><td>${n}</td><td colspan="5">まだ記録がないよ</td></tr>`; }).join('')}</table>
+    <div class="row" style="margin-top:12px">${store.lastResult ? '<button class="btn" id="lastBtn">前回の記録を見る</button>' : ''}<button class="btn gray" id="recBack">もどる</button></div>`;
+  $('#panelIn').querySelectorAll('.recv').forEach(b => b.onclick = () => showResultSnap(best[b.dataset.k]));
+  if ($('#lastBtn')) $('#lastBtn').onclick = () => showResultSnap(store.lastResult);
+  $('#recBack').onclick = () => title();
+  $('#panel').style.display = 'flex';
+}
+function showResultSnap(L) {
+  if (!L) return;
+  $('#panelIn').classList.add('resmode'); $('#panelIn').innerHTML = L.html;
+  $('#again').textContent = '記録にもどる'; $('#again').onclick = recordScreen;
+  $('#copy').onclick = () => { navigator.clipboard ? navigator.clipboard.writeText(L.share).then(() => toast('コピーしました'), () => prompt('コピーしてね', L.share)) : prompt('コピーしてね', L.share); };
+}
 function confirmStart(grade, extreme) {
   if (NOLIMIT) return newRun(grade, extreme);
   const m = $('#modal'); m.style.display = 'flex';
@@ -601,7 +623,7 @@ function confirmStart(grade, extreme) {
 // タイトルの状態：ねている／つづきから／今日はおわり／えらべる
 function titleMode() { return awake() && !store.save && !playedToday(); }
 function titleState() {
-  const last = store.lastResult ? '<button class="btn gray" id="lastBtn" style="font-size:20px;padding:8px 18px">📜 前回の記録</button>' : '';
+  const last = '';
   if (!awake()) return `<div class="tstate">💤 竜はねむっている…<br><small>${PLAY_HOURS[0]}時〜${PLAY_HOURS[1]}時にまた来よう！</small></div><div class="row">${last}</div>`;
   if (store.save) { const v = store.save.S; return `<div class="row"><button class="btn gold" id="contBtn" style="font-size:28px;padding:12px 40px">▶ つづきから（${v.grade ? v.grade + '年' : v.extreme ? 'エクストリーム' : 'ハード'}・${v.day}日目）</button>${last}</div>`; }
   if (playedToday()) return `<div class="tstate">🌙 今日の挑戦はおわり！<br><small>また明日、${PLAY_HOURS[0]}時〜${PLAY_HOURS[1]}時に挑戦しよう</small></div><div class="row">${last}<button class="btn gray" id="passBtn2" style="font-size:20px;padding:8px 18px">🔑 パスワード</button></div>`;
@@ -623,23 +645,14 @@ function title(justUnlocked) {
     <p style="text-align:center;font-size:15px;margin-top:4px">ハード：4〜6年の全問題／与ダメ↓・被ダメ↑／スコア1.5倍　💀エクストリーム：さらにきびしい／スコア2倍</p>
     
     <div class="chips" style="margin-top:12px">${cnt}</div>
-    <div class="row" style="align-items:center;font-size:17px"><label><input type="checkbox" id="append"> いまの問題に追加</label><button class="btn gray" id="csvBtn" style="font-size:18px;padding:8px 16px">📂 問題CSVを読みこむ</button></div>
-    <input type="file" id="csv" accept=".csv,text/csv" hidden>`;
+    <div class="row"><button class="btn gray" id="recBtn" style="font-size:20px;padding:8px 22px">📜 冒険の記録</button></div>`;
   $('#panel').style.display = 'flex'; $('#panel').classList.add('title');
   $('#panelIn').querySelectorAll('[data-g]').forEach(b => b.onclick = () => { const L = b.dataset.lock; if (L && !UNLOCK[L]) return lockNotice(LOCK_HINT[L]); confirmStart(+b.dataset.g, !!b.dataset.x); });
   if ($('#contBtn')) $('#contBtn').onclick = resumeGame;
-  if ($('#lastBtn')) $('#lastBtn').onclick = showLastResult;
   if ($('#passBtn2')) $('#passBtn2').onclick = passScreen;
   $('#passBtn').onclick = passScreen;
   if (justUnlocked) { fxAdd('<div class="flash" style="background:#fff"></div>', 900); anim('#panelIn', 'shakeBig'); }
-  $('#csvBtn').onclick = () => $('#csv').click();
-  $('#csv').onchange = async e => {
-    const f = e.target.files[0]; if (!f) return;
-    const rows = await readCSVFile(f);
-    if (!rows.length) { toast('読みこめる問題がありませんでした'); return; }
-    const base = $('#append').checked ? DB.map(q => [q.s, q.g, q.q, q.c, q.e]) : [];
-    loadDB(base.concat(rows)); toast(`${rows.length}問を読みこみました`); title();
-  };
+  $('#recBtn').onclick = recordScreen;
 }
 
 // ---------- チュートリアル（1画面・1クリックで1日目へ） ----------
@@ -1356,7 +1369,10 @@ function result(clear) {
     t.querySelectorAll('.rrow').forEach(e => e.classList.add('on')); t.querySelector('#rRank').classList.add('on');
     t.querySelectorAll('.rfade').forEach(e => e.style.opacity = 1); t.querySelector('#rScore').textContent = fmt(score);
     t.querySelectorAll('.rskip,.rpager').forEach(e => e.remove());
-    store.lastResult = { share, html: t.innerHTML }; }
+    const d = new Date(), snap = { share, html: t.innerHTML, score, rank, date: `${d.getMonth() + 1}/${d.getDate()}`,
+      label: S.trueWin ? '真・完全勝利' : S.kuroWin ? '完全勝利' : clear ? 'クリア' : `${S.day}日目でたおれた` };
+    store.lastResult = snap; store.best = store.best || {};
+    const k = modeOf(); if (!store.best[k] || score > store.best[k].score) { store.best[k] = snap; $('#rRank').insertAdjacentHTML('afterend', '<div class="rfade newbest">🎉 ハイスコア更新！</div>'); } }
   persist();
   if (pages > 1) {
     $('#rPrev').onclick = e => { e.stopPropagation(); page = (page + pages - 1) % pages; showPage(); };
