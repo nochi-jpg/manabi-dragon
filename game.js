@@ -113,7 +113,9 @@ window.imgFb = el => { const r = el.dataset.fb ? el.dataset.fb.split('|') : []; 
 function imgArt(list, emoji, cls = '', style = '') {
   return `<div class="art ${cls}" style="${style}"><img src="${R(list[0])}" data-fb="${list.slice(1).join('|')}" onerror="imgFb(this)" onload="this.nextElementSibling.style.display='none'" alt=""><span class="emo">${emoji}</span></div>`;
 }
-function setBg(img, grad) { stage.style.backgroundImage = `url("${R(img)}"), ${grad}`; }
+function setBg(img, grad) { stage.style.backgroundImage = `url("${R(img)}"), ${grad}`; $('#titleBg').style.display = 'none'; }
+// タイトル画面だけは、背景を「画像」として一番うしろに置く（Canvaサイトで最初の背景が出ない対策）
+function setTitleBg(img) { const t = $('#titleBg'); t.src = R(img); t.style.display = 'block'; }
 // 背景をかき直す（Canvaサイトでは、見えていない間に表示された背景が出ないことがあるため）
 function refreshBg() { const v = stage.style.backgroundImage; if (!v || v === 'none') return; const pad = ', linear-gradient(transparent, transparent)'; stage.style.backgroundImage = v.endsWith(pad) ? v.slice(0, -pad.length) : v + pad; }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshBg(); });
@@ -646,7 +648,8 @@ function titleState() {
 function title(justUnlocked) {
   $('#panelIn').classList.remove('resmode');
   S = null; B = null; hideSuspend();
-  setBg(store.exClear ? ASSETS.bg.titleClear : UNLOCK.extreme ? ASSETS.bg.titleExtreme : UNLOCK.hard ? ASSETS.bg.titleHard : ASSETS.bg.title, GRAD[0]);
+  const tbg = store.exClear ? ASSETS.bg.titleClear : UNLOCK.extreme ? ASSETS.bg.titleExtreme : UNLOCK.hard ? ASSETS.bg.titleHard : ASSETS.bg.title;
+  setBg(tbg, GRAD[0]); setTitleBg(tbg);
   [200, 800, 2000].forEach(t => setTimeout(() => { if (!S) refreshBg(); }, t));
   ['#side', '#info', '#bossHp', '#intent', '#cdBox'].forEach(s => $(s).style.display = 'none');
   setChara(''); clearChoices(); msg('');
