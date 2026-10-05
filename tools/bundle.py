@@ -13,7 +13,9 @@ for d, _, fs in os.walk('images'):
         im = Image.open(p); buf = io.BytesIO()
         im.save(buf, 'WEBP', quality=82, method=6)
         imgs[p] = 'data:image/webp;base64,' + base64.b64encode(buf.getvalue()).decode()
-js = 'window.__IMG=' + repr(imgs).replace("'", '"') + ';'
+import datetime
+ver = (datetime.datetime.utcnow() + datetime.timedelta(hours=9)).strftime('%m%d-%H%M')   # バージョン＝作った日時（日本時間）
+js = 'window.__VER="' + ver + '";window.__IMG=' + repr(imgs).replace("'", '"') + ';'
 def inline(name): return '<script>\n' + open(name, encoding='utf-8').read().replace('</script', '<\\/script') + '\n</script>'
 html = html.replace('<script src="assets.js"></script>', '<script>' + js + '</script>\n' + inline('assets.js'))
 html = html.replace('<script src="questions.js"></script>', inline('questions.js'))
@@ -31,4 +33,4 @@ if os.path.exists(fp):
 os.makedirs('dist', exist_ok=True)
 out = 'dist/manabi-dragon.html'
 open(out, 'w', encoding='utf-8').write(html)
-print(out, round(os.path.getsize(out) / 1e6, 1), 'MB', len(imgs), 'images')
+print(out, round(os.path.getsize(out) / 1e6, 1), 'MB', len(imgs), 'images', 'ver.' + ver)

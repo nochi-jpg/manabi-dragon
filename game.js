@@ -663,7 +663,8 @@ function title(justUnlocked) {
     <p style="text-align:center;font-size:15px;margin-top:4px">ハード：4〜6年の全問題／与ダメ↓・被ダメ↑／スコア1.5倍　💀エクストリーム：さらにきびしい／スコア2倍</p>
     
     <div class="chips" style="margin-top:12px">${cnt}</div>
-    <div class="row"><button class="btn gray" id="recBtn" style="font-size:20px;padding:8px 22px">📜 冒険の記録</button></div>`;
+    <div class="row"><button class="btn gray" id="recBtn" style="font-size:20px;padding:8px 22px">📜 冒険の記録</button></div>
+    <div class="verTag">ver.${window.__VER || 'dev'}</div>`;
   $('#panel').style.display = 'flex'; $('#panel').classList.remove('splash'); $('#panel').classList.add('title'); $('#panel').onclick = null;
   $('#panelIn').querySelectorAll('[data-g]').forEach(b => b.onclick = () => { const L = b.dataset.lock; if (L && !UNLOCK[L]) return lockNotice(LOCK_HINT[L]); confirmStart(+b.dataset.g, !!b.dataset.x); });
   if ($('#contBtn')) $('#contBtn').onclick = resumeGame;
@@ -1437,7 +1438,7 @@ function splash() {
   setChara(''); clearChoices();
   const P = $('#panel'); P.classList.remove('title'); P.classList.add('splash');
   $('#panelIn').classList.remove('resmode');
-  $('#panelIn').innerHTML = '<div class="tapMsg">画面を押してね</div>';
+  $('#panelIn').innerHTML = `<div class="tapMsg">画面を押してね</div><div class="verTag" style="position:fixed;right:16px;bottom:10px">ver.${window.__VER || 'dev'}</div>`;
   P.style.display = 'flex';
   P.onclick = () => { P.onclick = null; P.classList.remove('splash'); title(); };
 }
