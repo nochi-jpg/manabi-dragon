@@ -657,7 +657,7 @@ function title(justUnlocked) {
     
     <div class="chips" style="margin-top:12px">${cnt}</div>
     <div class="row"><button class="btn gray" id="recBtn" style="font-size:20px;padding:8px 22px">📜 冒険の記録</button></div>`;
-  $('#panel').style.display = 'flex'; $('#panel').classList.add('title');
+  $('#panel').style.display = 'flex'; $('#panel').classList.remove('splash'); $('#panel').classList.add('title'); $('#panel').onclick = null;
   $('#panelIn').querySelectorAll('[data-g]').forEach(b => b.onclick = () => { const L = b.dataset.lock; if (L && !UNLOCK[L]) return lockNotice(LOCK_HINT[L]); confirmStart(+b.dataset.g, !!b.dataset.x); });
   if ($('#contBtn')) $('#contBtn').onclick = resumeGame;
   // かくしコマンド：「保健」のチップを20回おすとパスワード入力（デバッグ用）
@@ -1421,15 +1421,17 @@ function result(clear) {
   list.push(P.ultimate);
   window.__pre = [...new Set(list.filter(p => p && (!window.__IMG || window.__IMG[p])))].map(src => { const i = new Image(); i.src = R(src); return i; });
 })();
-// ---------- 起動画面「PUSH START」（宇宙の背景） ----------
+// ---------- 起動画面（黒背景に「画面を押してね」） ----------
+// Canvaサイトでは最初の画面の背景が出ないことがあるため、1枚はさんでからタイトルへ
 function splash() {
   if (NOLIMIT) return title();
-  setBg(ASSETS.bg.splash, GRAD[2]);
-  ['#side', '#info', '#bossHp', '#intent', '#cdBox', '#msgbar', '#panel'].forEach(s => $(s).style.display = 'none');
-  setChara('');
-  const sp = document.createElement('div'); sp.id = 'splash';
-  sp.innerHTML = '<div class="pushStart">PUSH START</div>';
-  stage.appendChild(sp);
-  sp.onclick = () => { sp.onclick = null; sp.classList.add('out'); fxAdd('<div class="flash" style="background:#fff"></div>', 600); setTimeout(() => { sp.remove(); title(); }, 350); };
+  setBg('', 'linear-gradient(#000,#000)');
+  ['#side', '#info', '#bossHp', '#intent', '#cdBox', '#msgbar'].forEach(s => $(s).style.display = 'none');
+  setChara(''); clearChoices();
+  const P = $('#panel'); P.classList.remove('title'); P.classList.add('splash');
+  $('#panelIn').classList.remove('resmode');
+  $('#panelIn').innerHTML = '<div class="tapMsg">画面を押してね</div>';
+  P.style.display = 'flex';
+  P.onclick = () => { P.onclick = null; P.classList.remove('splash'); title(); };
 }
 splash();
