@@ -72,7 +72,7 @@ const ROTATE_PORTRAIT = true;   // 縦画面のときはゲーム画面を90度�
 let VIS = null;
 if (window.self !== window.top && window.IntersectionObserver) {
   try {
-    new IntersectionObserver(es => { const r = es[es.length - 1].intersectionRect; VIS = r.width > 50 && r.height > 50 ? { x: r.left, y: r.top, w: r.width, h: r.height } : null; fit(); },
+    new IntersectionObserver(es => { const r = es[es.length - 1].intersectionRect; if (!VIS && r.width > 50) setTimeout(refreshBg, 50); VIS = r.width > 50 && r.height > 50 ? { x: r.left, y: r.top, w: r.width, h: r.height } : null; fit(); },
       { threshold: Array.from({ length: 101 }, (_, i) => i / 100) }).observe(document.getElementById('vp'));
   } catch (e) {}
 }
@@ -114,6 +114,9 @@ function imgArt(list, emoji, cls = '', style = '') {
   return `<div class="art ${cls}" style="${style}"><img src="${R(list[0])}" data-fb="${list.slice(1).join('|')}" onerror="imgFb(this)" onload="this.nextElementSibling.style.display='none'" alt=""><span class="emo">${emoji}</span></div>`;
 }
 function setBg(img, grad) { stage.style.backgroundImage = `url("${R(img)}"), ${grad}`; }
+// 背景をかき直す（Canvaサイトでは、見えていない間に表示された背景が出ないことがあるため）
+function refreshBg() { const v = stage.style.backgroundImage; if (!v || v === 'none') return; const pad = ', linear-gradient(transparent, transparent)'; stage.style.backgroundImage = v.endsWith(pad) ? v.slice(0, -pad.length) : v + pad; }
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshBg(); });
 function strongAgainst(def) { const j = EL.indexOf(def); return j < 0 ? null : EL[(j + 1) % 4]; }
 function mult(atk, def) {
   if (atk === '英語') return 1;
@@ -644,6 +647,7 @@ function title(justUnlocked) {
   $('#panelIn').classList.remove('resmode');
   S = null; B = null; hideSuspend();
   setBg(store.exClear ? ASSETS.bg.titleClear : UNLOCK.extreme ? ASSETS.bg.titleExtreme : UNLOCK.hard ? ASSETS.bg.titleHard : ASSETS.bg.title, GRAD[0]);
+  [200, 800, 2000].forEach(t => setTimeout(() => { if (!S) refreshBg(); }, t));
   ['#side', '#info', '#bossHp', '#intent', '#cdBox'].forEach(s => $(s).style.display = 'none');
   setChara(''); clearChoices(); msg('');
   $('#msgbar').style.display = 'none';
