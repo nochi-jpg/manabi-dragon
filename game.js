@@ -570,6 +570,13 @@ async function sleepCheck() {
 }
 function showSuspend() { if (!NOLIMIT) $('#suspendBtn').style.display = 'block'; }
 function hideSuspend() { $('#suspendBtn').style.display = 'none'; }
+function toggleFullscreen() {
+  const d = document, el = d.documentElement;
+  if (d.fullscreenElement) return d.exitFullscreen();
+  const p = el.requestFullscreen ? el.requestFullscreen() : null;
+  if (!p) return toast('全画面にするには、キーボードの F11 をおしてね');
+  p.catch(() => toast('ここでは全画面にできません。キーボードの F11 をおしてね'));
+}
 function suspendGame() {
   hideSuspend(); clearChoices();
   title(); toast('中断しました。「つづきから」で再開できます');
@@ -636,13 +643,13 @@ function titleState() {
 function title(justUnlocked) {
   $('#panelIn').classList.remove('resmode');
   S = null; B = null; hideSuspend();
-  setBg(ASSETS.bg.title, GRAD[0]);
+  setBg(store.exClear ? ASSETS.bg.titleClear : UNLOCK.extreme ? ASSETS.bg.titleExtreme : UNLOCK.hard ? ASSETS.bg.titleHard : ASSETS.bg.title, GRAD[0]);
   ['#side', '#info', '#bossHp', '#intent', '#cdBox'].forEach(s => $(s).style.display = 'none');
   setChara(''); clearChoices(); msg('');
   $('#msgbar').style.display = 'none';
   const cnt = SUBJ.map(s => `<span class="chip" style="background:${BTNC[s]}">${s} ${DB.filter(q => q.s === s).length}</span>`).join('');
   $('#panelIn').innerHTML = `
-    <img src="${R(ASSETS.logo)}" alt="まなびドラゴン" class="logo" onerror="this.outerHTML='<h1 class=&quot;ol&quot;>まなびドラゴン</h1>'">
+    <img src="${R(awake() ? ASSETS.logo : ASSETS.logoSleep)}" alt="まなびドラゴン" class="logo" onerror="this.outerHTML='<h1 class=&quot;ol&quot;>まなびドラゴン</h1>'">
     <p style="text-align:center">勉強して竜を育て、3週間後の天使をたおせ！</p>
     ${titleState()}
     <div class="row" ${titleMode() ? '' : 'style="display:none"'}><button class="btn" data-g="4">4年生</button><button class="btn" data-g="5">5年生</button><button class="btn" data-g="6">6年生</button><button class="btn${UNLOCK.hard ? '' : ' locked'}${justUnlocked === 'hard' || justUnlocked === 'extreme' ? ' unlocked' : ''}" data-g="0" data-lock="hard" style="background:#b91c1c">${UNLOCK.hard ? '' : '🔒'}🔥 ハード</button><button class="btn${UNLOCK.extreme ? '' : ' locked'}${justUnlocked === 'extreme' ? ' unlocked' : ''}" data-g="0" data-x="1" data-lock="extreme" style="background:linear-gradient(135deg,#4c1d95,#111)">${UNLOCK.extreme ? '' : '🔒'}💀 エクストリーム</button></div>
@@ -1340,6 +1347,7 @@ function result(clear) {
   const ORDER = ['SSS', 'SS', 'S', 'A', 'B', 'C', 'D'];
   if (S.continues && ORDER.indexOf(rank) < ORDER.indexOf(CONT_RANK_MAX)) rank = CONT_RANK_MAX;
   // ノーコンティニューでクリアしたら、次の難易度を自動で解禁（タイトルにもどったときに知らせる）
+  if (clear && !S.continues && S.extreme && !store.exClear) { store.exClear = true; persist(); }
   const unlockKey = !clear || S.continues ? null : S.grade > 0 ? 'hard' : !S.extreme ? 'extreme' : null;
   let pass = '';
   if (unlockKey && !UNLOCK[unlockKey]) {
@@ -1406,7 +1414,7 @@ function result(clear) {
 
 // 画像の先読み（ゲーム中の読み込み待ちをなくす）
 (function preload() {
-  const A = ASSETS, list = [A.logo, A.master.img, A.merchant.img, A.kuroganeUp.img, ...Object.values(A.boss).flatMap(b => [b.img, b.img2, b.img3]), A.devil.img, A.omikuji.img, A.scout.img,
+  const A = ASSETS, list = [A.logo, A.logoSleep, A.master.img, A.merchant.img, A.kuroganeUp.img, ...Object.values(A.boss).flatMap(b => [b.img, b.img2, b.img3]), A.devil.img, A.omikuji.img, A.scout.img,
     ...Object.values(A.bg).flat()];
   const P = A.player, keys = Object.values(A.romaji).concat('base');
   for (const k of keys) for (let t = 0; t < 3; t++) list.push(`${P.dir}${k}_${t}.png`);

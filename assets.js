@@ -2,7 +2,8 @@
 // 画像を置けば自動で差し替わります。見つからないときは絵文字＋色で表示。
 // フォルダ：images/bg/ 背景（1280×720）、images/player/ 自キャラ顔、images/boss/ ボス、images/master.png 師匠
 window.ASSETS = {
-  logo: 'images/logo.png',          // タイトルロゴ
+  logo: 'images/logo_wake.png',     // タイトルロゴ（遊べる時間：起きている竜）
+  logoSleep: 'images/logo_sleep.png', // 遊べない時間：寝ている竜
   player: {
     name: 'まなドラ',
     dir: 'images/player/',          // {教科}_{段階}.png → 例 kokugo_1.png（なければ base_{段階}.png → base_0.png）
@@ -74,7 +75,10 @@ window.ASSETS = {
             img3: 'images/boss/last3.png', name3: '無垢なるワスレーヌ' }, // 一度たおすと img2・name2 の第2形態で全回復して復活。エクストリームのみ第3形態（img3・name3）
   },
   bg: {
-    title:  'images/bg/space.png',     // タイトル（ブラックホール）
+    title:  'images/bg/title_sky.png',  // タイトル：まだクリアしていない（青空）
+    titleHard: 'images/bg/title_sunset.png',   // ハード解禁（夕焼け）
+    titleExtreme: 'images/bg/title_star.png',  // エクストリーム解禁（星空）
+    titleClear: 'images/bg/title_rainbow.png', // エクストリームをクリア（虹）
     lesson: ['images/bg/lesson1.png', 'images/bg/lesson2.png', 'images/bg/lesson3.png'], // 週ごと（だんだん荒廃）
     battle: ['images/bg/battle1.png', 'images/bg/battle2.png', 'images/bg/battle3.png'],
     last:   'images/bg/last.png',     // ファイナルデー（火山）
