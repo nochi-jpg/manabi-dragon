@@ -333,6 +333,12 @@ table{width:100%;font-size:20px;border-collapse:collapse}td{padding:3px}td:last-
 
 #fsBtn{position:absolute;right:12px;bottom:52px;z-index:31;font-size:16px;padding:5px 14px;border:3px solid #111;border-radius:14px;background:#bae6fd;color:#111;cursor:pointer;box-shadow:0 4px 0 #111}
 #suspendBtn{font-size:18px;padding:6px 16px}
+
+/* ---- 起動画面 PUSH START ---- */
+#splash{position:absolute;inset:0;z-index:40;display:flex;align-items:flex-end;justify-content:center;padding-bottom:150px;cursor:pointer;transition:opacity .35s}
+#splash.out{opacity:0}
+.pushStart{font-size:64px;letter-spacing:10px;color:#fff;text-shadow:0 0 16px #a5b4fc,0 0 32px #6366f1,0 4px 0 #000;animation:pushBlink 1.2s steps(2,start) infinite}
+@keyframes pushBlink{50%{opacity:0}}
 </style>
 </head>
 <body>

@@ -75,6 +75,7 @@ window.ASSETS = {
             img3: 'images/boss/last3.png', name3: '無垢なるワスレーヌ' }, // 一度たおすと img2・name2 の第2形態で全回復して復活。エクストリームのみ第3形態（img3・name3）
   },
   bg: {
+    splash: 'images/bg/space.png',     // 起動画面（PUSH START）
     title:  'images/bg/title_sky.png',  // タイトル：まだクリアしていない（青空）
     titleHard: 'images/bg/title_sunset.png',   // ハード解禁（夕焼け）
     titleExtreme: 'images/bg/title_star.png',  // エクストリーム解禁（星空）

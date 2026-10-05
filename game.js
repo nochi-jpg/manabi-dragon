@@ -1421,4 +1421,15 @@ function result(clear) {
   list.push(P.ultimate);
   window.__pre = [...new Set(list.filter(p => p && (!window.__IMG || window.__IMG[p])))].map(src => { const i = new Image(); i.src = R(src); return i; });
 })();
-title();
+// ---------- 起動画面「PUSH START」（宇宙の背景） ----------
+function splash() {
+  if (NOLIMIT) return title();
+  setBg(ASSETS.bg.splash, GRAD[2]);
+  ['#side', '#info', '#bossHp', '#intent', '#cdBox', '#msgbar', '#panel'].forEach(s => $(s).style.display = 'none');
+  setChara('');
+  const sp = document.createElement('div'); sp.id = 'splash';
+  sp.innerHTML = '<div class="pushStart">PUSH START</div>';
+  stage.appendChild(sp);
+  sp.onclick = () => { sp.onclick = null; sp.classList.add('out'); fxAdd('<div class="flash" style="background:#fff"></div>', 600); setTimeout(() => { sp.remove(); title(); }, 350); };
+}
+splash();
