@@ -21,6 +21,13 @@ html = html.replace('<script src="game.js"></script>', inline('game.js'))
 html = re.sub(r'<link rel="manifest"[^>]*>\n?', '', html)
 icon = imgs.get('images/icon-192.png', '')
 html = html.replace('href="images/icon-192.png"', f'href="{icon}"')
+# フォント（使う文字だけにしぼったもの）も埋めこむ → ネットにつながらなくてもドット文字になる
+fp = 'fonts/DotGothic16-sub.woff'
+if os.path.exists(fp):
+    furi = 'data:font/woff;base64,' + base64.b64encode(open(fp, 'rb').read()).decode()
+    html = html.replace('url("fonts/DotGothic16-sub.woff") format("woff"),url("fonts/DotGothic16-Regular.ttf")', f'url("{furi}") format("woff")')
+    html = re.sub(r'<link rel="preconnect" href="https://fonts.googleapis.com">\n?', '', html)
+    html = re.sub(r'<link href="https://fonts.googleapis.com[^>]*>\n?', '', html)
 os.makedirs('dist', exist_ok=True)
 out = 'dist/manabi-dragon.html'
 open(out, 'w', encoding='utf-8').write(html)

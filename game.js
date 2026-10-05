@@ -68,10 +68,19 @@ const wait = ms => new Promise(r => setTimeout(r, ms * SPD));
 let SC = 1;
 // ---------- 画面サイズ合わせ（PC・スマホ共通） ----------
 const ROTATE_PORTRAIT = true;   // 縦画面のときはゲーム画面を90度回して最大表示する
+// Canvaサイトなどの枠（iframe）の中では、枠が画面より大きいことがある → 実際に見えている範囲に合わせる
+let VIS = null;
+if (window.self !== window.top && window.IntersectionObserver) {
+  try {
+    new IntersectionObserver(es => { const r = es[es.length - 1].intersectionRect; VIS = r.width > 50 && r.height > 50 ? { x: r.left, y: r.top, w: r.width, h: r.height } : null; fit(); },
+      { threshold: Array.from({ length: 101 }, (_, i) => i / 100) }).observe(document.getElementById('vp'));
+  } catch (e) {}
+}
 function fit() {
   const vv = window.visualViewport, W = vv ? vv.width : innerWidth, H = vv ? vv.height : innerHeight;
   const cs = getComputedStyle($('#safe')), px = v => parseFloat(v) || 0;
-  const sl = px(cs.paddingLeft), sr = px(cs.paddingRight), st = px(cs.paddingTop), sb = px(cs.paddingBottom);
+  let sl = px(cs.paddingLeft), sr = px(cs.paddingRight), st = px(cs.paddingTop), sb = px(cs.paddingBottom);
+  if (VIS && (VIS.h < H - 2 || VIS.w < W - 2)) { sl = VIS.x; st = VIS.y; sr = W - VIS.x - VIS.w; sb = H - VIS.y - VIS.h; }
   const w = W - sl - sr, h = H - st - sb, rot = ROTATE_PORTRAIT && h > w;
   SC = rot ? Math.min(h / 1280, w / 720) : Math.min(w / 1280, h / 720);
   stage.style.left = (sl + w / 2) + 'px'; stage.style.top = (st + h / 2) + 'px';
