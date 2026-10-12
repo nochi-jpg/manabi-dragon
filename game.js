@@ -482,7 +482,8 @@ function dateCut(from, to) {
 
 // ---------- タイトル ----------
 // ---------- パスワードロック（セーブなし：ページを開き直すとロックにもどる） ----------
-const PASSWORD = { hard: '961', extreme: '621' };   // 961＝くろい、621＝むずい
+const PASSWORD = { hard: '961', extreme: '621' };
+const BONUS_CODE = { '765': 1, '573': 3 };   // 先生用：その日の挑戦回数を追加（上限3回をこえてOK・翌日にはもどる）   // 961＝くろい、621＝むずい
 const UNLOCK = { hard: false, extreme: false };   // 解除はブラウザに保存（下の store から読みこむ）
 const LOCK_HINT = {
   hard: '<b style="display:inline;font-size:22px">解禁条件</b><br>ノーマル（4〜6年）を<br>ノーコンティニューでクリア',
@@ -508,6 +509,12 @@ function passScreen() {
   $('#passBack').onclick = () => title();
   $('#passOk').onclick = () => {
     const code = d.join(''), pm = $('#passMsg');
+    if (BONUS_CODE[code]) {
+      const t = today(), add = BONUS_CODE[code];
+      store.bonus = { date: t, n: (store.bonus && store.bonus.date === t ? store.bonus.n : 0) + add }; persist();
+      pm.className = 'passmsg ok'; pm.textContent = `挑戦回数が${add}回ふえました！（今日はあと${playsLeft()}回）`;
+      $('#passOk').disabled = true; setTimeout(() => title(), 1400); return;
+    }
     const hit = code === PASSWORD.extreme ? 'extreme' : code === PASSWORD.hard ? 'hard' : null;
     if (!hit) { pm.className = 'passmsg ng'; pm.textContent = 'にんしょうしっぱい・・・'; anim('.dial', 'shake'); return; }
     UNLOCK.hard = true; if (hit === 'extreme') UNLOCK.extreme = true;
@@ -530,7 +537,7 @@ function persist() { if (NOLIMIT) return; try { localStorage.setItem(SKEY, JSON.
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 const awake = () => { if (NOLIMIT) return true; const h = new Date().getHours(); return h >= PLAY_HOURS[0] && h < PLAY_HOURS[1]; };
 const DAILY_PLAYS = 3;                 // 1日に挑戦できる回数（ためられない）
-const playsLeft = () => NOLIMIT ? 99 : Math.max(0, DAILY_PLAYS - (store.plays && store.plays.date === today() ? store.plays.n : 0));
+const playsLeft = () => NOLIMIT ? 99 : Math.max(0, DAILY_PLAYS + (store.bonus && store.bonus.date === today() ? store.bonus.n : 0) - (store.plays && store.plays.date === today() ? store.plays.n : 0));
 const playedToday = () => playsLeft() <= 0;
 // --- 状態を保存できる形に変える（問題・アイテムは名前で記録） ---
 const ALL_ITEMS = () => [...SKILLS, ...SKILLS_HARD, ...SKILLS_SR, ...SKILLS_LR];
