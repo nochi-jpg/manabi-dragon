@@ -671,7 +671,7 @@ function title(justUnlocked) {
     
     <div class="chips" style="margin-top:12px">${cnt}</div>
     <div class="row"><button class="btn gray" id="recBtn" style="font-size:20px;padding:8px 22px">📜 冒険の記録</button></div>
-    <div class="verTag">ver.${window.__VER || 'dev'}</div>`;
+    <div class="verTag">ver.${window.__VER || 'dev'}　企画・ゲームデザイン のち（まなび堂）</div>`;
   $('#panel').style.display = 'flex'; $('#panel').classList.remove('splash'); $('#panel').classList.add('title'); $('#panel').onclick = null;
   $('#panelIn').querySelectorAll('[data-g]').forEach(b => b.onclick = () => { const L = b.dataset.lock; if (L && !UNLOCK[L]) return lockNotice(LOCK_HINT[L]); confirmStart(+b.dataset.g, !!b.dataset.x); });
   if ($('#contBtn')) $('#contBtn').onclick = resumeGame;
