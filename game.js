@@ -586,8 +586,8 @@ function toggleFullscreen() {
   const d = document, el = d.documentElement;
   if (d.fullscreenElement) return d.exitFullscreen();
   const p = el.requestFullscreen ? el.requestFullscreen() : null;
-  if (!p) return toast('全画面にするには、キーボードの F11 をおしてね');
-  p.catch(() => toast('ここでは全画面にできません。キーボードの F11 をおしてね'));
+  if (!p) return toast('F11を押すか、FnとF11を同時に押そう');
+  p.catch(() => toast('F11を押すか、FnとF11を同時に押そう'));
 }
 function suspendGame() {
   hideSuspend(); clearChoices();
